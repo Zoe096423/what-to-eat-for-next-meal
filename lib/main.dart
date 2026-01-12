@@ -7,6 +7,7 @@
 // In progress: Change the app icon and name.
 
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:roulette/roulette.dart';
 import 'package:hive_flutter/hive_flutter.dart'; // For local data
@@ -226,6 +227,9 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
+
+
+
 class RoulettePage extends StatefulWidget {
   @override
   RoulettePageState createState() => RoulettePageState();
@@ -236,121 +240,123 @@ class RoulettePageState extends State<RoulettePage>{
   final _controller = RouletteController();
   final bool _clockwise = true;
 
-  List<String> get rouletteList => Hive.box<List>('localLists').get(selectedList.value, defaultValue: [])!.cast<String>();
-
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<String>(
-      // ValueListenableBuilder listens to the selected variable (valueListenable) and refreshes the page automatically whenever a change was made.
       valueListenable: selectedList,
-      builder: (context, String selected, child) {
-        final rouletteList = Hive.box<List>('localLists').get(selected, defaultValue: [])!.cast<String>();
+      builder: (context, selected, child) {
+        return ValueListenableBuilder<Box<List>>(
+          valueListenable: Hive.box<List>('localLists').listenable(),
+          builder: (context, box, child) {
+            final rouletteList = box.get(selected, defaultValue: [])!.cast<String>();
 
-        // Color control
-        final List<Color> colors = <Color>[];
-        final int value = rouletteList.length*100;
-        final List<int> sat = [150,1,255];
-        final List<int> cRange = [255,0,100];
-        
-        for(int i=0;i<rouletteList.length;i++){
-          int color(int x) => ((sin(cRange[x]/rouletteList.length*i)*value).round()+255-cRange[x])%sat[x];
-          colors.add(Color.fromARGB(255, color(0), color(1), color(2)).withAlpha(70),);
-        }
+            // Color control
+            final List<Color> colors = <Color>[];
+            final int value = rouletteList.length*100;
+            final List<int> sat = [150,1,255];
+            final List<int> cRange = [255,0,100];
+            
+            for(int i=0;i<rouletteList.length;i++){
+              int color(int x) => ((sin(cRange[x]/rouletteList.length*i)*value).round()+255-cRange[x])%sat[x];
+              colors.add(Color.fromARGB(255, color(0), color(1), color(2)).withAlpha(70),);
+            }
 
-        // Generating roulette
-        late final group = RouletteGroup.uniform(
-          rouletteList.length,
-          colorBuilder: (index) => colors[index%colors.length],
-          textBuilder: (index) => rouletteList[index],
-          textStyleBuilder: (index) {
-            return const TextStyle(color: Colors.black, fontWeight: FontWeight.bold);
-          },
-        );
+            // Generating roulette
+            late final group = RouletteGroup.uniform(
+              rouletteList.length,
+              colorBuilder: (index) => colors[index%colors.length],
+              textBuilder: (index) => rouletteList[index],
+              textStyleBuilder: (index) {
+                return const TextStyle(color: Colors.black, fontWeight: FontWeight.bold);
+              },
+            );
 
-        return Scaffold(
-          appBar: AppBar( title: Text('等下吃什麼?'), ),
-          body: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  // ignore: deprecated_member_use
-                  color: Colors.pink.withOpacity(0.1),
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      OutlinedButton(
-                        onPressed: () { // Edit list button
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => EditListPage(),
-                            ),
-                          );
-                        },
-                        child: const Text('編輯清單'),
-                      ),
-                      Stack( // Roulette
-                        alignment: Alignment.topCenter,
+            return Scaffold(
+              appBar: AppBar( title: Text('等下吃什麼?'), ),
+              body: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      // ignore: deprecated_member_use
+                      color: Colors.pink.withOpacity(0.1),
+                    ),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.only(top: 5),
-                            child: Text(selected),
+                          OutlinedButton(
+                            onPressed: () { // Edit list button
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => EditListPage(),
+                                ),
+                              );
+                            },
+                            child: const Text('編輯清單'),
                           ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 20),
-                            child: MyRoulette(
-                              group: group,
-                              controller: _controller,
-                            ),
+                          Stack( // Roulette
+                            alignment: Alignment.topCenter,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 5),
+                                child: Text(selected),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.only(top: 20),
+                                child: MyRoulette(
+                                  group: group,
+                                  controller: _controller,
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.only(top: 10),
+                                child: Icon(
+                                  Icons.arrow_drop_down,
+                                  size: 50,
+                                  color: const Color.fromARGB(255, 255, 139, 101),
+                                ),
+                              ),
+                            ],
                           ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 10),
-                            child: Icon(
-                              Icons.arrow_drop_down,
-                              size: 50,
-                              color: const Color.fromARGB(255, 255, 139, 101),
-                            ),
+                          const SizedBox(height: 50),
+                          FilledButton( // Roll button
+                            onPressed: () async {
+                              final int resultInt = _random.nextInt(rouletteList.length);
+                              final completed = await _controller.rollTo(
+                                resultInt,
+                                clockwise: _clockwise,
+                                offset: _random.nextDouble(),
+                              );
+                  
+                              if (completed) {
+                                String result = rouletteList[resultInt];
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(result)),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('已取消')),
+                                );
+                              }
+                            },
+                            child: const Text('抽!'),
+                          ),
+                          FilledButton( // Cancel button
+                            onPressed: () { _controller.stop(); },
+                            child: const Text('取消'),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 50),
-                      FilledButton( // Roll button
-                        onPressed: () async {
-                          final int resultInt = _random.nextInt(rouletteList.length);
-                          final completed = await _controller.rollTo(
-                            resultInt,
-                            clockwise: _clockwise,
-                            offset: _random.nextDouble(),
-                          );
-              
-                          if (completed) {
-                            String result = rouletteList[resultInt];
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(result)),
-                            );
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('已取消')),
-                            );
-                          }
-                        },
-                        child: const Text('抽!'),
-                      ),
-                      FilledButton( // Cancel button
-                        onPressed: () { _controller.stop(); },
-                        child: const Text('取消'),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -378,7 +384,7 @@ class _EditListPageState extends State<EditListPage> {
       appBar: AppBar(
         title: Text('編輯清單'),
         actions: [
-          IconButton(
+          IconButton( // Add new list
             onPressed: () async {
               final newName = await Navigator.push(
                 context,
@@ -545,6 +551,20 @@ class _EditItemPageState extends State<EditItemPage> {
       appBar: AppBar(
         title: Text(widget.listName),
         actions: [
+          IconButton( // Add new item
+            onPressed: () async {
+              final newName = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AddOrEditName(),
+                  ),
+              );
+              if (newName != null) {
+                setState(() { newItem(widget.listName,newName); });
+              }
+            },
+            icon: const Icon(Icons.add),
+          ),
           IconButton( // Edit
             onPressed: () async {
               final newName = await Navigator.push(
