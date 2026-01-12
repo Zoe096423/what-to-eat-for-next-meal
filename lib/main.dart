@@ -374,33 +374,42 @@ class _EditListPageState extends State<EditListPage> {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: true,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) {
-          print("The page was closed!");
-          // You can perform logic here, like saving data or logging
-        }
-      },
-      child: Scaffold(
-        appBar: AppBar( title: Text('編輯清單'), ),
-        body: ValueListenableBuilder(
-          valueListenable: box.listenable(),
-          builder: (context, Box<List> box, child) {
-            return ReorderableListView.builder( // List
-              padding: const EdgeInsets.all(12.0),
-              itemCount: box.length,
-              onReorder: (oldIndex, newIndex) {
-                if (newIndex > oldIndex) newIndex -= 1;
-                final key = localListOrder.removeAt(oldIndex);
-                localListOrder.insert(newIndex, key);
-              },
-              itemBuilder: (context, index) {
-                return ListEditBox(key: ValueKey(localListOrder[index]), curList: localListOrder[index]);
-              },
-            );
-          },
-        ),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('編輯清單'),
+        actions: [
+          IconButton(
+            onPressed: () async {
+              final newName = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AddOrEditName(),
+                  ),
+              );
+              if (newName != null) {
+                setState(() { newList(newName); });
+              }
+            },
+            icon: const Icon(Icons.add),
+          ),
+        ],
+      ),
+      body: ValueListenableBuilder(
+        valueListenable: box.listenable(),
+        builder: (context, Box<List> box, child) {
+          return ReorderableListView.builder( // List
+            padding: const EdgeInsets.all(12.0),
+            itemCount: box.length,
+            onReorder: (oldIndex, newIndex) {
+              if (newIndex > oldIndex) newIndex -= 1;
+              final key = localListOrder.removeAt(oldIndex);
+              localListOrder.insert(newIndex, key);
+            },
+            itemBuilder: (context, index) {
+              return ListEditBox(key: ValueKey(localListOrder[index]), curList: localListOrder[index]);
+            },
+          );
+        },
       ),
     );
   }
@@ -465,15 +474,15 @@ class ListEditBox extends StatelessWidget {
   }
 }
 
-class NameEdit extends StatefulWidget {
+class AddOrEditName extends StatefulWidget {
   final String prevName;
-  const NameEdit({super.key, required this.prevName});
+  AddOrEditName({super.key, this.prevName = ''});
 
   @override
-  _NameEditState createState() => _NameEditState();
+  _AddOrEditNameState createState() => _AddOrEditNameState();
 }
 
-class _NameEditState extends State<NameEdit>{
+class _AddOrEditNameState extends State<AddOrEditName> {
   final _newName = GlobalKey<FormState>();
   final nameController = TextEditingController();
 
@@ -487,7 +496,7 @@ class _NameEditState extends State<NameEdit>{
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('編輯名稱')),
+      appBar: AppBar(title: Text((widget.prevName=='') ? '新增項目' : '編輯名稱')),
       body: Form(
         key: _newName,
         child: Padding(
@@ -500,7 +509,7 @@ class _NameEditState extends State<NameEdit>{
                 validator: (value) { return null; },
                 decoration: InputDecoration(
                   border: const UnderlineInputBorder(),
-                  labelText: widget.prevName,
+                  labelText: (widget.prevName=='') ? '' : widget.prevName,
                 ),
               ),
               const SizedBox(height: 20),
@@ -541,7 +550,7 @@ class _EditItemPageState extends State<EditItemPage> {
               final newName = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => NameEdit(prevName:widget.listName),
+                  builder: (context) => AddOrEditName(prevName:widget.listName),
                   ),
               );
               if (newName != null) {
@@ -628,7 +637,7 @@ class _ItemEditBoxState extends State<ItemEditBox>{
               final newName = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => NameEdit(prevName:widget.curItem),
+                  builder: (context) => AddOrEditName(prevName:widget.curItem),
                 ),
               );
               if (newName != null) {
