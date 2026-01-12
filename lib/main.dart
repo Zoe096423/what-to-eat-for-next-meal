@@ -7,7 +7,6 @@
 // In progress: Change the app icon and name.
 
 import 'dart:math';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:roulette/roulette.dart';
 import 'package:hive_flutter/hive_flutter.dart'; // For local data
