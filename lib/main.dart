@@ -1,7 +1,6 @@
 // ignore_for_file: use_build_context_synchronously, library_private_types_in_public_api, must_be_immutable
 // Roulette source: https://pub.dev/packages/roulette
 
-// In progress: Make the function for adding new lists/items.
 // In progress: Make the diary page functionable.
 // In progress: Add the function of manually changing the percentage in editItem.
 // In progress: Change the app icon and name.
