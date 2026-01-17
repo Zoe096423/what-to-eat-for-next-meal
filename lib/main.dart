@@ -132,11 +132,17 @@ bool editItemName(String listName, String oldName, String newName) {
   } return true;
 }
 
-void removeItem(String listName,String itemName) {
+void removeItem(String listName, String itemName) {
   final box = Hive.box<List>('localLists');
   final list = box.get(listName, defaultValue: [])!.cast<String>();
   list.remove(itemName);
   box.put(listName, list);
+}
+
+// Functions for diary entries
+void newDiary(DateTime dt, String listName, String itemName) {
+  final box = Hive.box<List>('diary');
+  box.put(dt.toString() + listName + itemName, []);
 }
 
 // Main app
@@ -220,8 +226,8 @@ class _HomePageState extends State<HomePage> {
           setState(() { currentIndex = index; });
         },
         items: [
-          BottomNavigationBarItem(icon: Icon(Icons.speed), label: 'Roulette'),
-          BottomNavigationBarItem(icon: Icon(Icons.article), label: 'Diary'),
+          BottomNavigationBarItem(icon: const Icon(Icons.speed), label: 'Roulette'),
+          BottomNavigationBarItem(icon: const Icon(Icons.article), label: 'Diary'),
         ],
       ),
     );
@@ -684,13 +690,117 @@ class _ItemEditBoxState extends State<ItemEditBox>{
   }
 }
 
-class DiaryPage extends StatelessWidget {
+class DiaryPage extends StatefulWidget {
+  DiaryPage({super.key});
+
+  @override
+  _DiaryPageState createState() => _DiaryPageState();
+}
+
+class _DiaryPageState extends State<DiaryPage>{
   @override
   Widget build(BuildContext context){
     return Scaffold(
-      appBar: AppBar( title: const Text('用餐日記'), ),
+      appBar: AppBar(
+        title: const Text('用餐日記'),
+        actions: [
+          IconButton( // Add new item
+            onPressed: () async {
+              final newValue = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AddOrEditDiary(),
+                  ),
+              );
+              if (newValue != null) {
+                setState(() { newDiary(newValue, newValue, newValue); }); // In progress...
+              }
+            },
+            icon: const Icon(Icons.add),
+          ),
+        ],
+      ),
       body: Column(
         // In progress...
+      ),
+    );
+  }
+}
+
+class AddOrEditDiary extends StatefulWidget {
+  final String prevValue;
+  AddOrEditDiary({super.key, this.prevValue = ''});
+
+  @override
+  _AddOrEditDiaryState createState() => _AddOrEditDiaryState();
+}
+
+class _AddOrEditDiaryState extends State<AddOrEditDiary> {
+  final _newValue = GlobalKey<FormState>();
+  final nameController = TextEditingController();
+  ValueNotifier<DateTime> dateTime = ValueNotifier<DateTime>(DateTime.now());
+
+  @override
+  void dispose() {
+    // Clean up the controller when the widget is disposed.
+    nameController.dispose();
+    super.dispose();
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text((widget.prevValue=='') ? '新增日記' : '編輯日記')),
+      body: Form(
+        key: _newValue,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  ValueListenableBuilder<DateTime>(
+                    valueListenable: dateTime,
+                    builder: (BuildContext context, DateTime value, Widget? child) {
+                      return Text(value.toString());
+                    },
+                  ),
+                  IconButton(
+                    onPressed: () async {
+                      final DateTime? pickedDate = await showDatePicker(
+                        context: context,
+                        initialDate: dateTime.value,
+                        firstDate: DateTime(dateTime.value.year-1),
+                        lastDate: DateTime(dateTime.value.year+1),
+                      );
+                      if(pickedDate!=null){
+                        setState( () { dateTime.value = pickedDate; } );
+                      }
+                    },
+                    icon: const Icon(Icons.edit),
+                  ),
+                ],
+              ),
+              TextFormField(
+                controller: nameController,
+                // The validator receives the text that the user has entered.
+                validator: (value) { return null; },
+                decoration: InputDecoration(
+                  border: const UnderlineInputBorder(),
+                  labelText: (widget.prevValue=='') ? '' : widget.prevValue,
+                ),
+              ),
+              const SizedBox(height: 20),
+              FilledButton(
+                onPressed: () {
+                  // Validate returns true if the form is valid, or false otherwise.
+                  Navigator.pop(context,nameController.text);
+                },
+                child: const Text('確定'),
+              ),
+            ]
+          ),
+        ),
       ),
     );
   }
