@@ -773,8 +773,16 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                         firstDate: DateTime(dateTime.value.year-1),
                         lastDate: DateTime(dateTime.value.year+1),
                       );
-                      if(pickedDate!=null){
-                        setState( () { dateTime.value = pickedDate; } );
+                      final TimeOfDay? pickedTime = await showTimePicker(
+                        initialTime: TimeOfDay.now(),
+                        context: context,
+                      );
+                      if(pickedDate!=null && pickedTime!=null){
+                        setState( () {
+                          dateTime.value = pickedDate.add(
+                            Duration(hours: pickedTime.hour, minutes: pickedTime.minute)
+                          );
+                        } );
                       }
                     },
                     icon: const Icon(Icons.edit),
