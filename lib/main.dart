@@ -19,30 +19,35 @@ void main() async {
   await Hive.initFlutter(); // Initialize
   await Hive.openBox('settings');
   await Hive.openBox<List>('localLists');
+  await Hive.openBox('diary');
   await initializeDefaultLists();
   runApp(MyApp());
 }
 
 // Initialize
 Future<bool> isFirstLaunch() async {
-  return !(Hive.box('settings').get('isInitialized', defaultValue: false) as bool);
+  return !((Hive.box('settings').get('isInitialized', defaultValue: false) as bool)
+        && (Hive.box('localLists').get('isInitialized', defaultValue: false) as bool)
+        && (Hive.box('diary').get('isInitialized', defaultValue: false) as bool));
 }
 
 Future<void> setInitialized() async {
   await Hive.box('settings').put('isInitialized', true);
+  await Hive.box('localLists').put('isInitialized', true);
+  await Hive.box('diary').put('isInitialized', true);
 }
 
 Future<void> initializeDefaultLists() async {
-  final box = Hive.box<List>('localLists');
+  final boxLocalLists = Hive.box<List>('localLists');
   // Initial lists
-  if (box.isEmpty) {
-    await box.put('早餐',
+  if (boxLocalLists.isEmpty) {
+    await boxLocalLists.put('早餐',
     ['Meal 1',
      'Meal 2',
      'Meal 3',
      'Meal 4',
      'Meal 5',]);
-     await box.put('午晚餐',
+     await boxLocalLists.put('午晚餐',
     ['Meal 1',
      'Meal 2',
      'Meal 3',
@@ -50,7 +55,7 @@ Future<void> initializeDefaultLists() async {
      'Meal 5',]);
   }
 
-  for(int i=box.length-1;i>=0;i--){ localListOrder.add(box.keyAt(i)); }
+  for(int i=boxLocalLists.length-1;i>=0;i--){ localListOrder.add(boxLocalLists.keyAt(i)); }
 
   // Flagging
   if (await isFirstLaunch()) { await setInitialized(); }
