@@ -19,20 +19,18 @@ void main() async {
   await Hive.initFlutter(); // Initialize
   await Hive.openBox('settings');
   await Hive.openBox<List>('localLists');
-  await Hive.openBox('diary');
+  await Hive.openBox<Map>('diary');
   await initializeDefaultLists();
   runApp(MyApp());
 }
 
 // Initialize
 Future<bool> isFirstLaunch() async {
-  return !((Hive.box('settings').get('isInitialized', defaultValue: false) as bool)
-        && (Hive.box('diary').get('isInitialized', defaultValue: false) as bool));
+  return !(Hive.box('settings').get('isInitialized', defaultValue: false) as bool);
 }
 
 Future<void> setInitialized() async {
   await Hive.box('settings').put('isInitialized', true);
-  await Hive.box('diary').put('isInitialized', true);
 }
 
 Future<void> initializeDefaultLists() async {
@@ -142,7 +140,7 @@ void removeItem(String listName, String itemName) {
 // Functions for diary entries
 void newDiary(DateTime dt, String listName, String itemName) {
   final box = Hive.box<List>('diary');
-  box.put(dt.toString() + listName + itemName, []);
+  box.put({"dateTime":dt, "listName":listName, "itemName":itemName}, []);
 }
 
 // Main app
@@ -698,6 +696,8 @@ class DiaryPage extends StatefulWidget {
 }
 
 class _DiaryPageState extends State<DiaryPage>{
+  final diaryBox = Hive.box<Map>('diary');
+
   @override
   Widget build(BuildContext context){
     return Scaffold(
@@ -713,15 +713,24 @@ class _DiaryPageState extends State<DiaryPage>{
                   ),
               );
               if (newValue != null) {
-                setState(() { newDiary(newValue, newValue, newValue); }); // In progress...
+                setState(() { newDiary(newValue.dateTime, newValue.listName, newValue.itemName); }); // In progress...
               }
             },
             icon: const Icon(Icons.add),
           ),
         ],
       ),
-      body: Column(
-        // In progress...
+      body: ValueListenableBuilder(
+        valueListenable: diaryBox.listenable(),
+        builder: (context, value, child) {
+          return ListView.builder(
+            padding: const EdgeInsets.all(12.0),
+            itemCount: diaryBox.length,
+            itemBuilder: (context, index) {
+              return Text("In progress..."); // In progress...
+            },
+          );
+        },
       ),
     );
   }
@@ -736,14 +745,33 @@ class AddOrEditDiary extends StatefulWidget {
 }
 
 class _AddOrEditDiaryState extends State<AddOrEditDiary> {
-  final _newValue = GlobalKey<FormState>();
-  final nameController = TextEditingController();
   ValueNotifier<DateTime> dateTime = ValueNotifier<DateTime>(DateTime.now());
+  late String listName;
+  late String itemName;
+  final listsBox = Hive.box<List>('localLists');
+  
+  @override
+  void initState() {
+    super.initState();
+    // Initialize listName to the first list if available
+    listName = localListOrder.isNotEmpty ? localListOrder[0] : '';
+    // Initialize itemName to the first item of the selected list
+    itemName = _getItemsForList(listName).isNotEmpty ? _getItemsForList(listName)[0] : '';
+  }
+  
+  List<String> _getItemsForList(String list) {
+    return listsBox.get(list, defaultValue: [])?.cast<String>() ?? [];
+  }
+
+  final _newValue = GlobalKey<FormState>();
+  //final listController = TextEditingController();
+  //final itemController = TextEditingController();
 
   @override
   void dispose() {
     // Clean up the controller when the widget is disposed.
-    nameController.dispose();
+    //listController.dispose();
+    //itemController.dispose();
     super.dispose();
   }
   
@@ -789,20 +817,47 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                   ),
                 ],
               ),
-              TextFormField(
-                controller: nameController,
-                // The validator receives the text that the user has entered.
-                validator: (value) { return null; },
-                decoration: InputDecoration(
-                  border: const UnderlineInputBorder(),
-                  labelText: (widget.prevValue=='') ? '' : widget.prevValue,
-                ),
+              Text("吃了什麼?"),
+              DropdownButton<String>(
+                value: listName.isNotEmpty ? listName : null,
+                icon: const Icon(Icons.arrow_drop_down),
+                onChanged: (String? newValue) {
+                  setState(() { 
+                    listName = newValue!;
+                    // Update itemName to first item of new list
+                    final items = _getItemsForList(listName);
+                    itemName = items.isNotEmpty ? items[0] : '';
+                  });
+                },
+                items: localListOrder.map<DropdownMenuItem<String>>((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 10),
+              DropdownButton<String>( // In progress...
+                value: itemName.isNotEmpty ? itemName : null,
+                icon: const Icon(Icons.arrow_drop_down),
+                onChanged: (String? newValue) {
+                  setState(() { itemName = newValue!; });
+                },
+                items: _getItemsForList(listName).map<DropdownMenuItem<String>>((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
               ),
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: () {
                   // Validate returns true if the form is valid, or false otherwise.
-                  Navigator.pop(context,nameController.text);
+                  Navigator.pop(context,{
+                    "dateTime":dateTime,
+                    "listName":listName,
+                    "itemName":itemName});
                 },
                 child: const Text('確定'),
               ),
