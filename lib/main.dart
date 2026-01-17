@@ -27,13 +27,11 @@ void main() async {
 // Initialize
 Future<bool> isFirstLaunch() async {
   return !((Hive.box('settings').get('isInitialized', defaultValue: false) as bool)
-        && (Hive.box('localLists').get('isInitialized', defaultValue: false) as bool)
         && (Hive.box('diary').get('isInitialized', defaultValue: false) as bool));
 }
 
 Future<void> setInitialized() async {
   await Hive.box('settings').put('isInitialized', true);
-  await Hive.box('localLists').put('isInitialized', true);
   await Hive.box('diary').put('isInitialized', true);
 }
 
@@ -229,9 +227,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
-
-
-
 
 class RoulettePage extends StatefulWidget {
   @override
