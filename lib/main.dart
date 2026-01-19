@@ -21,8 +21,6 @@ void main() async {
   await Hive.openBox<List<String>>('localLists');
   await Hive.openBox<Map<String,double>>('itemWeights');
   await Hive.openBox<Map<DateTime,Map>>('diary');
-  final box = Hive.box<List<String>>('localLists'); //debug
-  await box.clear(); //debug
   await initializeDefaultLists();
   runApp(MyApp());
 }
@@ -766,13 +764,16 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
   ValueNotifier<DateTime> dateTime = ValueNotifier<DateTime>(DateTime.now());
   late String listName;
   late String itemName;
-  final listsBox = Hive.box<List>('localLists');
+  late String addToList;
+  bool addToRoulette = false;
+  final listsBox = Hive.box<List<String>>('localLists');
   
   @override
   void initState() {
     super.initState();
     // Initialize listName to the first list if available
     listName = localListOrder.isNotEmpty ? localListOrder[0] : '';
+    addToList = localListOrder.isNotEmpty ? localListOrder[0] : '';
     // Initialize itemName to the first item of the selected list (if any)
     final items = _getItemsForList(listName);
     itemName = items.isNotEmpty ? items[0] : '';
@@ -783,13 +784,11 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
   }
 
   final _newValue = GlobalKey<FormState>();
-  //final listController = TextEditingController();
   final itemController = TextEditingController();
 
   @override
   void dispose() {
     // Clean up the controller when the widget is disposed.
-    //listController.dispose();
     itemController.dispose();
     super.dispose();
   }
@@ -878,16 +877,58 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                 children: [
                   Text("或者，登錄新的食物:  "),
                   const SizedBox(width: 10),
-                  TextFormField(
-                    controller: itemController,
-                    // The validator receives the text that the user has entered.
-                    validator: (value) { return null; },
-                    decoration: InputDecoration(
-                      border: const UnderlineInputBorder(),
-                      labelText: '',
+                  SizedBox(
+                    height: 80,
+                    width: 100,
+                    child: TextFormField(
+                      controller: itemController,
+                      // The validator receives the text that the user has entered.
+                      validator: (value) { return null; },
+                      decoration: InputDecoration(
+                        border: const UnderlineInputBorder(),
+                        labelText: '',
+                      ),
                     ),
                   ),
-                  
+                ],
+              ),
+              Row( // Add new food to roulette or not // In progress...
+                children: [
+                  Text('是否將新的食物登錄到轉盤?'),
+                  IconButton( // Selection
+                    onPressed: () { setState((){ addToRoulette = true; }); },
+                    icon: (addToRoulette==true) ? const Icon(Icons.check_box) : const Icon(Icons.check_box_outline_blank),
+                  ),
+                  Text('是'),
+                  IconButton( // Selection
+                    onPressed: () { setState((){ addToRoulette = false; }); },
+                    icon: (addToRoulette==false) ? const Icon(Icons.check_box) : const Icon(Icons.check_box_outline_blank),
+                  ),
+                  Text('否'),
+                ],
+              ),
+              Row( // Which list of the roulette to add to
+                children: [
+                  Text('加進'),
+                  DropdownButton<String>( // List
+                    value: addToList.isNotEmpty ? addToList : null,
+                    icon: const Icon(Icons.arrow_drop_down),
+                    onChanged: (String? newValue) {
+                      setState(() { 
+                        addToList = newValue!;
+                        // Update itemName to first item of new list
+                        final items = _getItemsForList(addToList);
+                        itemName = items[0];
+                      });
+                    },
+                    items: localListOrder.map<DropdownMenuItem<String>>((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
+                  ),
+                  Text('，權重:In progress'),
                 ],
               ),
               const SizedBox(height: 20),
