@@ -58,7 +58,7 @@ Future<void> initializeDefaultLists() async {
   if (await isFirstLaunch()) { await setInitialized(); }
 }
 
-// Local save/load
+// Local save/load (outdated)
 Future<void> saveAllLists(Map<String, List<String>> lists) async {
   final box = Hive.box<List>('localLists');
   print('Saving lists...');
@@ -254,7 +254,7 @@ class RoulettePageState extends State<RoulettePage>{
           builder: (context, box, child) {
             final rouletteMap = box.get(selected, defaultValue: {})!.cast<String,double>();
             localItemOrder.clear();
-            for(int i=0;i<box.length;i++){ localItemOrder.add(box.keyAt(i)); }
+            localItemOrder.addAll(rouletteMap.keys);
 
             // Color control
             final List<Color> colors = <Color>[];
@@ -632,6 +632,9 @@ class ItemEditBox extends StatefulWidget {
 
 class _ItemEditBoxState extends State<ItemEditBox>{
 
+  //localItemOrder.clear();
+  //localItemOrder.addAll(rouletteMap.keys);
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -642,7 +645,7 @@ class _ItemEditBoxState extends State<ItemEditBox>{
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: <Widget>[
           ReorderableDragStartListener(
-            index: Hive.box<List>('localLists').get(widget.curList, defaultValue: [])!.cast<String>().indexOf(widget.curItem),
+            index: localItemOrder.indexOf(widget.curItem),
             child: IconButton( // Move layers
               onPressed: () {},
               icon: const Icon(Icons.more_vert),
@@ -821,7 +824,7 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                   ),
                 ],
               ),
-              Row( // Drop down menu
+              Row( // Record food
                 children: [
                   Text("吃了什麼?"),
                   const SizedBox(width: 10),
@@ -859,7 +862,7 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                   ),
                 ],
               ),
-              Row(
+              Row( // Record new food
                 children: [
                   Text("或者，登錄新的食物:  "),
                   const SizedBox(width: 10),
