@@ -13,13 +13,14 @@ import 'package:hive_flutter/hive_flutter.dart'; // For local data
 enum RGB {R,G,B}
 ValueNotifier<String> selectedList = ValueNotifier('午晚餐');
 final List<String> localListOrder = [];
+final List<String> localItemOrder = [];
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter(); // Initialize
   await Hive.openBox('settings');
-  await Hive.openBox<List>('localLists');
-  await Hive.openBox<Map>('diary');
+  await Hive.openBox<Map<String,double>>('localLists');
+  await Hive.openBox<Map<DateTime,Map>>('diary');
   await initializeDefaultLists();
   runApp(MyApp());
 }
@@ -34,21 +35,21 @@ Future<void> setInitialized() async {
 }
 
 Future<void> initializeDefaultLists() async {
-  final boxLocalLists = Hive.box<List>('localLists');
+  final boxLocalLists = Hive.box<Map<String,double>>('localLists');
   // Initial lists
   if (boxLocalLists.isEmpty) {
     await boxLocalLists.put('早餐',
-    ['Meal 1',
-     'Meal 2',
-     'Meal 3',
-     'Meal 4',
-     'Meal 5',]);
+    {'Meal 1':0.2,
+     'Meal 2':0.2,
+     'Meal 3':0.2,
+     'Meal 4':0.2,
+     'Meal 5':0.2,});
      await boxLocalLists.put('午晚餐',
-    ['Meal 1',
-     'Meal 2',
-     'Meal 3',
-     'Meal 4',
-     'Meal 5',]);
+    {'Meal 1':0.2,
+     'Meal 2':0.2,
+     'Meal 3':0.2,
+     'Meal 4':0.2,
+     'Meal 5':0.2,});
   }
 
   for(int i=boxLocalLists.length-1;i>=0;i--){ localListOrder.add(boxLocalLists.keyAt(i)); }
@@ -110,37 +111,38 @@ void removeList(String name) {
 }
 
 void newItem(String listName,String itemName) {
-  final box = Hive.box<List>('localLists');
-  final list = box.get(listName, defaultValue: [])!.cast<String>();
+  final box = Hive.box<Map>('localLists');
+  final map = box.get(listName, defaultValue: {})!.cast<String,double>();
   // ! = Force to treat data as non-null
-  // cast<String>() = Force assign every data value as string types.
-  list.add(itemName);
-  box.put(listName, list);
+  // cast<T>() = Force assign every data value as T types.
+  map[itemName] = 0.2; // In progress...
+  box.put(listName, map);
 }
 
 bool editItemName(String listName, String oldName, String newName) {
-  final box = Hive.box<List>('localLists');
-  final list = box.get(listName, defaultValue: [])!.cast<String>();
-  if (list.contains(newName)) { // the key already exist
+  final box = Hive.box<Map>('localmaps');
+  final map = box.get(listName, defaultValue: {})!.cast<String,double>();
+  if (map[newName]!=null) { // the key already exist
     return false;
-  } else if (list.contains(oldName)) {
-    list[list.indexOf(oldName)] = newName;
+  } else if (map[oldName]!=null) {
+    map.addAll({newName:map[oldName]!});
+    map.remove(oldName);
     box.delete(listName);
-    box.put(listName, list);
+    box.put(listName, map);
   } return true;
 }
 
 void removeItem(String listName, String itemName) {
-  final box = Hive.box<List>('localLists');
-  final list = box.get(listName, defaultValue: [])!.cast<String>();
-  list.remove(itemName);
-  box.put(listName, list);
+  final box = Hive.box<Map>('localLists');
+  final map = box.get(listName, defaultValue: {})!.cast<String,double>();
+  map.remove(itemName);
+  box.put(listName, map);
 }
 
 // Functions for diary entries
 void newDiary(DateTime dt, String listName, String itemName) {
-  final box = Hive.box<List>('diary');
-  box.put({"dateTime":dt, "listName":listName, "itemName":itemName}, []);
+  final box = Hive.box<Map>('diary');
+  box.put(dt, {"listName":listName, "itemName":itemName});
 }
 
 // Main app
@@ -247,27 +249,29 @@ class RoulettePageState extends State<RoulettePage>{
     return ValueListenableBuilder<String>(
       valueListenable: selectedList,
       builder: (context, selected, child) {
-        return ValueListenableBuilder<Box<List>>(
-          valueListenable: Hive.box<List>('localLists').listenable(),
+        return ValueListenableBuilder<Box<Map<String,double>>>(
+          valueListenable: Hive.box<Map<String,double>>('localLists').listenable(),
           builder: (context, box, child) {
-            final rouletteList = box.get(selected, defaultValue: [])!.cast<String>();
+            final rouletteMap = box.get(selected, defaultValue: {})!.cast<String,double>();
+            localItemOrder.clear();
+            for(int i=0;i<box.length;i++){ localItemOrder.add(box.keyAt(i)); }
 
             // Color control
             final List<Color> colors = <Color>[];
-            final int value = rouletteList.length*100;
+            final int value = rouletteMap.length*100;
             final List<int> sat = [150,1,255];
             final List<int> cRange = [255,0,100];
             
-            for(int i=0;i<rouletteList.length;i++){
-              int color(int x) => ((sin(cRange[x]/rouletteList.length*i)*value).round()+255-cRange[x])%sat[x];
+            for(int i=0;i<rouletteMap.length;i++){
+              int color(int x) => ((sin(cRange[x]/rouletteMap.length*i)*value).round()+255-cRange[x])%sat[x];
               colors.add(Color.fromARGB(255, color(0), color(1), color(2)).withAlpha(70),);
             }
 
             // Generating roulette
             late final group = RouletteGroup.uniform(
-              rouletteList.length,
+              rouletteMap.length,
               colorBuilder: (index) => colors[index%colors.length],
-              textBuilder: (index) => rouletteList[index],
+              textBuilder: (index) => localItemOrder[index],
               textStyleBuilder: (index) {
                 return const TextStyle(color: Colors.black, fontWeight: FontWeight.bold);
               },
@@ -327,7 +331,7 @@ class RoulettePageState extends State<RoulettePage>{
                           const SizedBox(height: 50),
                           FilledButton( // Roll button
                             onPressed: () async {
-                              final int resultInt = _random.nextInt(rouletteList.length);
+                              final int resultInt = _random.nextInt(rouletteMap.length);
                               final completed = await _controller.rollTo(
                                 resultInt,
                                 clockwise: _clockwise,
@@ -335,7 +339,7 @@ class RoulettePageState extends State<RoulettePage>{
                               );
                   
                               if (completed) {
-                                String result = rouletteList[resultInt];
+                                String result = localItemOrder[resultInt];
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(content: Text(result)),
                                 );
@@ -765,13 +769,13 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
 
   final _newValue = GlobalKey<FormState>();
   //final listController = TextEditingController();
-  //final itemController = TextEditingController();
+  final itemController = TextEditingController();
 
   @override
   void dispose() {
     // Clean up the controller when the widget is disposed.
     //listController.dispose();
-    //itemController.dispose();
+    itemController.dispose();
     super.dispose();
   }
   
@@ -785,7 +789,7 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              Row(
+              Row( // Date & time
                 children: [
                   ValueListenableBuilder<DateTime>(
                     valueListenable: dateTime,
@@ -817,38 +821,59 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                   ),
                 ],
               ),
-              Text("吃了什麼?"),
-              DropdownButton<String>(
-                value: listName.isNotEmpty ? listName : null,
-                icon: const Icon(Icons.arrow_drop_down),
-                onChanged: (String? newValue) {
-                  setState(() { 
-                    listName = newValue!;
-                    // Update itemName to first item of new list
-                    final items = _getItemsForList(listName);
-                    itemName = items.isNotEmpty ? items[0] : '';
-                  });
-                },
-                items: localListOrder.map<DropdownMenuItem<String>>((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
+              Row( // Drop down menu
+                children: [
+                  Text("吃了什麼?"),
+                  const SizedBox(width: 10),
+                  DropdownButton<String>( // List
+                    value: listName.isNotEmpty ? listName : null,
+                    icon: const Icon(Icons.arrow_drop_down),
+                    onChanged: (String? newValue) {
+                      setState(() { 
+                        listName = newValue!;
+                        // Update itemName to first item of new list
+                        final items = _getItemsForList(listName);
+                        itemName = items.isNotEmpty ? items[0] : '';
+                      });
+                    },
+                    items: localListOrder.map<DropdownMenuItem<String>>((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(width: 10),
+                  DropdownButton<String>( // Food name
+                    value: itemName.isNotEmpty ? itemName : null,
+                    icon: const Icon(Icons.arrow_drop_down),
+                    onChanged: (String? newValue) {
+                      setState(() { itemName = newValue!; });
+                    },
+                    items: _getItemsForList(listName).map<DropdownMenuItem<String>>((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
+                  ),
+                ],
               ),
-              const SizedBox(height: 10),
-              DropdownButton<String>( // In progress...
-                value: itemName.isNotEmpty ? itemName : null,
-                icon: const Icon(Icons.arrow_drop_down),
-                onChanged: (String? newValue) {
-                  setState(() { itemName = newValue!; });
-                },
-                items: _getItemsForList(listName).map<DropdownMenuItem<String>>((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
+              Row(
+                children: [
+                  Text("或者，登錄新的食物:  "),
+                  const SizedBox(width: 10),
+                  TextFormField(
+                    controller: itemController,
+                    // The validator receives the text that the user has entered.
+                    validator: (value) { return null; },
+                    decoration: InputDecoration(
+                      border: const UnderlineInputBorder(),
+                      labelText: '',
+                    ),
+                  ),
+                  
+                ],
               ),
               const SizedBox(height: 20),
               FilledButton(
