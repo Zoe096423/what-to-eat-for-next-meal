@@ -13,7 +13,7 @@ import 'package:hive_flutter/hive_flutter.dart'; // For local data
 enum RGB {R,G,B}
 ValueNotifier<String> selectedList = ValueNotifier('午晚餐');
 final List<String> localListOrder = [];
-final List<String> localItemOrder = [];
+final List<String> localItemOrder = ['No list selected yet!'];
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +21,8 @@ void main() async {
   await Hive.openBox('settings');
   await Hive.openBox<Map<String,double>>('localLists');
   await Hive.openBox<Map<DateTime,Map>>('diary');
+  final box = Hive.box<Map<String,double>>('localLists'); //debug
+  await box.clear(); //debug
   await initializeDefaultLists();
   runApp(MyApp());
 }
@@ -35,16 +37,16 @@ Future<void> setInitialized() async {
 }
 
 Future<void> initializeDefaultLists() async {
-  final boxLocalLists = Hive.box<Map<String,double>>('localLists');
+  final boxlocalLists = Hive.box<Map<String,double>>('localLists');
   // Initial lists
-  if (boxLocalLists.isEmpty) {
-    await boxLocalLists.put('早餐',
+  if (boxlocalLists.isEmpty) {
+    await boxlocalLists.put('早餐',
     {'Meal 1':0.2,
      'Meal 2':0.2,
      'Meal 3':0.2,
      'Meal 4':0.2,
      'Meal 5':0.2,});
-     await boxLocalLists.put('午晚餐',
+     await boxlocalLists.put('午晚餐',
     {'Meal 1':0.2,
      'Meal 2':0.2,
      'Meal 3':0.2,
@@ -52,15 +54,15 @@ Future<void> initializeDefaultLists() async {
      'Meal 5':0.2,});
   }
 
-  for(int i=boxLocalLists.length-1;i>=0;i--){ localListOrder.add(boxLocalLists.keyAt(i)); }
+  for(int i=boxlocalLists.length-1;i>=0;i--){ localListOrder.add(boxlocalLists.keyAt(i)); }
 
   // Flagging
   if (await isFirstLaunch()) { await setInitialized(); }
 }
 
 // Local save/load (outdated)
-Future<void> saveAllLists(Map<String, List<String>> lists) async {
-  final box = Hive.box<List>('localLists');
+/*Future<void> saveAllLists(list<String, List<String>> lists) async {
+  final box = Hive.box<Map<String,double>>('localLists');
   print('Saving lists...');
   //await box.clear(); // Optional: Fully replace existing data
   for (var entry in lists.entries) {
@@ -69,29 +71,29 @@ Future<void> saveAllLists(Map<String, List<String>> lists) async {
   print('All lists saved successfully!');
 }
 
-Map<String, List<String>> loadAllLists() {
-  final box = Hive.box<List>('localLists');
+list<String, List<String>> loadAllLists() {
+  final box = Hive.box<Map<String,double>>('localLists');
   print('Loading lists...');
   return {
     for (var key in box.keys)
       key.toString(): box.get(key, defaultValue: [])!.cast<String>(),
   };
-}
+}*/
 
 // Functions for list edit
 void newList(String name) {
-  final box = Hive.box<List>('localLists');
-  if (!box.containsKey(name)) { box.put(name, []); }
+  final box = Hive.box<Map<String,double>>('localLists');
+  if (!box.containsKey(name)) { box.put(name, {}); }
   localListOrder.clear();
   for(int i=0;i<box.length;i++){ localListOrder.add(box.keyAt(i)); }
 }
 
-bool editListName(String oldName, String newName) {
-  final box = Hive.box<List>('localLists');
+bool editlistName(String oldName, String newName) {
+  final box = Hive.box<Map<String,double>>('localLists');
   if (box.containsKey(newName)) { // the key already exist
     return false;
   } else if (box.containsKey(oldName)) {
-    final list = box.get(oldName, defaultValue: [])!.cast<String>();
+    final list = box.get(oldName, defaultValue: <String,double>{})!.cast<String,double>();
     box.delete(oldName);
     box.put(newName, list);
   }
@@ -104,39 +106,39 @@ bool editListName(String oldName, String newName) {
 }
 
 void removeList(String name) {
-  final box = Hive.box<List>('localLists');
+  final box = Hive.box<Map<String,double>>('localLists');
   if (box.containsKey(name)) { box.delete(name); }
   localListOrder.clear();
   for(int i=0;i<box.length;i++){ localListOrder.add(box.keyAt(i)); }
 }
 
 void newItem(String listName,String itemName) {
-  final box = Hive.box<Map>('localLists');
-  final map = box.get(listName, defaultValue: {})!.cast<String,double>();
+  final box = Hive.box<Map<String,double>>('localLists');
+  final list = box.get(listName, defaultValue: <String,double>{})!.cast<String,double>();
   // ! = Force to treat data as non-null
   // cast<T>() = Force assign every data value as T types.
-  map[itemName] = 0.2; // In progress...
-  box.put(listName, map);
+  list[itemName] = 0.2; // In progress...
+  box.put(listName, list);
 }
 
 bool editItemName(String listName, String oldName, String newName) {
-  final box = Hive.box<Map>('localmaps');
-  final map = box.get(listName, defaultValue: {})!.cast<String,double>();
-  if (map[newName]!=null) { // the key already exist
+  final box = Hive.box<Map<String,double>>('localLists');
+  final list = box.get(listName, defaultValue: <String,double>{})!.cast<String,double>();
+  if (list[newName]!=null) { // the key already exist
     return false;
-  } else if (map[oldName]!=null) {
-    map.addAll({newName:map[oldName]!});
-    map.remove(oldName);
+  } else if (list[oldName]!=null) {
+    list.addAll({newName:list[oldName]!});
+    list.remove(oldName);
     box.delete(listName);
-    box.put(listName, map);
+    box.put(listName, list);
   } return true;
 }
 
 void removeItem(String listName, String itemName) {
-  final box = Hive.box<Map>('localLists');
-  final map = box.get(listName, defaultValue: {})!.cast<String,double>();
-  map.remove(itemName);
-  box.put(listName, map);
+  final box = Hive.box<Map<String,double>>('localLists');
+  final list = box.get(listName, defaultValue: <String,double>{})!.cast<String,double>();
+  list.remove(itemName);
+  box.put(listName, list);
 }
 
 // Functions for diary entries
@@ -252,24 +254,24 @@ class RoulettePageState extends State<RoulettePage>{
         return ValueListenableBuilder<Box<Map<String,double>>>(
           valueListenable: Hive.box<Map<String,double>>('localLists').listenable(),
           builder: (context, box, child) {
-            final rouletteMap = box.get(selected, defaultValue: {})!.cast<String,double>();
+            final roulettelist = box.get(selected, defaultValue: <String,double>{})!.cast<String,double>();
             localItemOrder.clear();
-            localItemOrder.addAll(rouletteMap.keys);
+            localItemOrder.addAll(roulettelist.keys);
 
             // Color control
             final List<Color> colors = <Color>[];
-            final int value = rouletteMap.length*100;
+            final int value = roulettelist.length*100;
             final List<int> sat = [150,1,255];
             final List<int> cRange = [255,0,100];
             
-            for(int i=0;i<rouletteMap.length;i++){
-              int color(int x) => ((sin(cRange[x]/rouletteMap.length*i)*value).round()+255-cRange[x])%sat[x];
+            for(int i=0;i<roulettelist.length;i++){
+              int color(int x) => ((sin(cRange[x]/roulettelist.length*i)*value).round()+255-cRange[x])%sat[x];
               colors.add(Color.fromARGB(255, color(0), color(1), color(2)).withAlpha(70),);
             }
 
             // Generating roulette
             late final group = RouletteGroup.uniform(
-              rouletteMap.length,
+              roulettelist.length,
               colorBuilder: (index) => colors[index%colors.length],
               textBuilder: (index) => localItemOrder[index],
               textStyleBuilder: (index) {
@@ -331,7 +333,7 @@ class RoulettePageState extends State<RoulettePage>{
                           const SizedBox(height: 50),
                           FilledButton( // Roll button
                             onPressed: () async {
-                              final int resultInt = _random.nextInt(rouletteMap.length);
+                              final int resultInt = _random.nextInt(roulettelist.length);
                               final completed = await _controller.rollTo(
                                 resultInt,
                                 clockwise: _clockwise,
@@ -382,7 +384,7 @@ class EditListPage extends StatefulWidget {
 }
 
 class _EditListPageState extends State<EditListPage> {
-  final box = Hive.box<List>('localLists');
+  final box = Hive.box<Map<String,double>>('localLists');
 
   @override
   Widget build(BuildContext context) {
@@ -408,7 +410,7 @@ class _EditListPageState extends State<EditListPage> {
       ),
       body: ValueListenableBuilder(
         valueListenable: box.listenable(),
-        builder: (context, Box<List> box, child) {
+        builder: (context, Box<Map> box, child) {
           return ReorderableListView.builder( // List
             padding: const EdgeInsets.all(12.0),
             itemCount: box.length,
@@ -444,7 +446,7 @@ class ListEditBox extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: <Widget>[
                 ReorderableDragStartListener(
-                  index: Hive.box<List>('localLists').keys.toList().indexOf(curList),
+                  index: Hive.box<Map<String,double>>('localLists').keys.toList().indexOf(curList),
                   child: IconButton( // Move layers
                     onPressed: () {},
                     icon: const Icon(Icons.more_vert),
@@ -549,7 +551,7 @@ class EditItemPage extends StatefulWidget {
 }
 
 class _EditItemPageState extends State<EditItemPage> {
-  final box = Hive.box<List>('localLists');
+  final box = Hive.box<Map<String,double>>('localLists');
 
   @override
   Widget build(BuildContext context) {
@@ -580,7 +582,7 @@ class _EditItemPageState extends State<EditItemPage> {
                   ),
               );
               if (newName != null) {
-                final success = editListName(widget.listName, newName);
+                final success = editlistName(widget.listName, newName);
                 if(success){ setState(() { widget.listName = newName; }); }
                 else{
                   showDialog(
@@ -600,19 +602,20 @@ class _EditItemPageState extends State<EditItemPage> {
       ),
       body: ValueListenableBuilder(
         valueListenable: box.listenable(),
-        builder: (context, Box<List> box, child) {
-          final itemList = box.get(widget.listName, defaultValue: [])!.cast<String>();
+        builder: (context, Box<Map> box, child) {
+          final itemMap = box.get(widget.listName, defaultValue: <String,double>{})!.cast<String,double>();
+          localItemOrder.clear();
+          localItemOrder.addAll(itemMap.keys);
           return ReorderableListView.builder( // List
             padding: const EdgeInsets.all(12.0),
-            itemCount: itemList.length,
+            itemCount: localItemOrder.length,
             onReorder: (oldIndex, newIndex) {
               if (newIndex > oldIndex) newIndex -= 1;
-              final key = itemList.removeAt(oldIndex);
-              itemList.insert(newIndex, key);
-              box.put(widget.listName, itemList); // Save the reordered list back to Hive
+              final key = localItemOrder.removeAt(oldIndex);
+              localItemOrder.insert(newIndex, key);
             },
             itemBuilder: (context, index) {
-              return ItemEditBox(key: ValueKey(itemList[index]), curList: widget.listName, curItem: itemList[index]);
+              return ItemEditBox(key: ValueKey(localItemOrder[index]), curList: widget.listName, curItem: localItemOrder[index]);
             },
           );
         },
@@ -631,9 +634,6 @@ class ItemEditBox extends StatefulWidget {
 }
 
 class _ItemEditBoxState extends State<ItemEditBox>{
-
-  //localItemOrder.clear();
-  //localItemOrder.addAll(rouletteMap.keys);
 
   @override
   Widget build(BuildContext context) {
@@ -703,7 +703,7 @@ class DiaryPage extends StatefulWidget {
 }
 
 class _DiaryPageState extends State<DiaryPage>{
-  final diaryBox = Hive.box<Map>('diary');
+  final diaryBox = Hive.box<Map<DateTime,Map>>('diary');
 
   @override
   Widget build(BuildContext context){
@@ -755,7 +755,7 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
   ValueNotifier<DateTime> dateTime = ValueNotifier<DateTime>(DateTime.now());
   late String listName;
   late String itemName;
-  final listsBox = Hive.box<List>('localLists');
+  final listsBox = Hive.box<Map<String,double>>('localLists');
   
   @override
   void initState() {
@@ -763,11 +763,13 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
     // Initialize listName to the first list if available
     listName = localListOrder.isNotEmpty ? localListOrder[0] : '';
     // Initialize itemName to the first item of the selected list
-    itemName = _getItemsForList(listName).isNotEmpty ? _getItemsForList(listName)[0] : '';
+    itemName = localItemOrder[0];
   }
   
   List<String> _getItemsForList(String list) {
-    return listsBox.get(list, defaultValue: [])?.cast<String>() ?? [];
+    localItemOrder.clear();
+    localItemOrder.addAll(listsBox.get(list, defaultValue: <String,double>{})!.cast<String,double>().keys);
+    return localItemOrder;
   }
 
   final _newValue = GlobalKey<FormState>();
@@ -836,7 +838,7 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                         listName = newValue!;
                         // Update itemName to first item of new list
                         final items = _getItemsForList(listName);
-                        itemName = items.isNotEmpty ? items[0] : '';
+                        itemName = items[0];
                       });
                     },
                     items: localListOrder.map<DropdownMenuItem<String>>((String value) {
