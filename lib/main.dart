@@ -2,6 +2,7 @@
 // Roulette source: https://pub.dev/packages/roulette
 
 // In progress: Make the diary page functionable.
+// In progress: Make item weights change, and make the roulette reflect weight changes.
 // In progress: Add the function of manually changing the percentage in editItem.
 // In progress: Change the app icon and name.
 
@@ -11,6 +12,21 @@ import 'package:roulette/roulette.dart';
 import 'package:hive_flutter/hive_flutter.dart'; // For local data
 
 enum RGB {R,G,B}
+
+class DiaryEntry {
+  final DateTime dateTime;
+  final String listName;
+  final String itemName;
+  final double itemWeight;
+
+  DiaryEntry({
+    required this.dateTime,
+    required this.listName,
+    required this.itemName,
+    required this.itemWeight,
+  });
+}
+
 ValueNotifier<String> selectedList = ValueNotifier('午晚餐');
 final List<String> localListOrder = [];
 
@@ -731,7 +747,7 @@ class _DiaryPageState extends State<DiaryPage>{
                   ),
               );
               if (newValue != null) {
-                setState(() { newDiary(newValue.dateTime, newValue.listName, newValue.itemName, newValue.itemWeight); }); // In progress...
+                setState(() { newDiary(newValue.dateTime, newValue.listName, newValue.itemName, newValue.itemWeight); });
               }
             },
             icon: const Icon(Icons.add),
@@ -769,9 +785,10 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
   late String addToList;
   final listsBox = Hive.box<List<String>>('localLists');
 
+  bool newFood = false;
   bool addToRoulette = false;
   bool changeWeight = false;
-  double itemWeight = 0; // In progress...
+  double itemWeight = 0.2; // In progress...
 
   final _newValue = GlobalKey<FormState>();
   final itemController = TextEditingController();
@@ -810,6 +827,8 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
             children: [
               Row( // Date & time
                 children: [
+                  Text('日期&時間:'),
+                  const SizedBox(width: 10),
                   ValueListenableBuilder<DateTime>(
                     valueListenable: dateTime,
                     builder: (BuildContext context, DateTime value, Widget? child) {
@@ -840,140 +859,173 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                   ),
                 ],
               ),
-              Row( // Record food
+              Row( // Choose method of recording
                 children: [
-                  Text("吃了什麼?"),
-                  const SizedBox(width: 10),
-                  DropdownButton<String>( // List
-                    value: listName.isNotEmpty ? listName : null,
-                    icon: const Icon(Icons.arrow_drop_down),
-                    onChanged: (String? newValue) {
-                      setState(() { 
-                        listName = newValue!;
-                        // Update itemName to first item of new list
-                        final items = _getItemsForList(listName);
-                        itemName = items[0];
-                      });
-                    },
-                    items: localListOrder.map<DropdownMenuItem<String>>((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(width: 10),
-                  DropdownButton<String>( // Food name
-                    value: itemName.isNotEmpty ? itemName : null,
-                    icon: const Icon(Icons.arrow_drop_down),
-                    onChanged: (String? newValue) {
-                      setState(() { itemName = newValue!; });
-                    },
-                    items: _getItemsForList(listName).map<DropdownMenuItem<String>>((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ),
-              Row( // Record new food
-                children: [
-                  Text("或者，今天吃了別的食物: "),
-                  const SizedBox(width: 10),
-                  SizedBox(
-                    height: 80,
-                    width: 100,
-                    child: TextFormField(
-                      controller: itemController,
-                      // The validator receives the text that the user has entered.
-                      validator: (value) { return null; },
-                      decoration: InputDecoration(
-                        border: const UnderlineInputBorder(),
-                        labelText: '',
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              Row( // Add new food to roulette or not
-                children: [
-                  Text('是否將新的食物登錄到轉盤?'),
+                  Text('要記錄什麼? '),
                   IconButton( // Selection
-                    onPressed: () { setState((){ addToRoulette = true; }); },
-                    icon: (addToRoulette==true) ? const Icon(Icons.check_box) : const Icon(Icons.check_box_outline_blank),
+                    onPressed: () { setState((){ newFood = false; }); },
+                    icon: (newFood==false) ? const Icon(Icons.check_box) : const Icon(Icons.check_box_outline_blank),
                   ),
-                  Text('是'),
+                  Text('轉盤內的食物'),
                   IconButton( // Selection
-                    onPressed: () { setState((){ addToRoulette = false; }); },
-                    icon: (addToRoulette==false) ? const Icon(Icons.check_box) : const Icon(Icons.check_box_outline_blank),
+                    onPressed: () { setState((){ newFood = true; }); },
+                    icon: (newFood==true) ? const Icon(Icons.check_box) : const Icon(Icons.check_box_outline_blank),
                   ),
-                  Text('否'),
+                  Text('新食物'),
                 ],
               ),
-              if(addToRoulette)
-                Row( // Which list of the roulette to add to
+              if(!newFood)
+                Row( // Record food
                   children: [
-                    Text('加進'),
-                    DropdownButton<String>( // List
-                      value: addToList.isNotEmpty ? addToList : null,
-                      icon: const Icon(Icons.arrow_drop_down),
-                      onChanged: (String? newValue) {
-                        setState(() { 
-                          addToList = newValue!;
-                          // Update itemName to first item of new list
-                          final items = _getItemsForList(addToList);
-                          itemName = items[0];
-                        });
-                      },
-                      items: localListOrder.map<DropdownMenuItem<String>>((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        );
-                      }).toList(),
-                    ),
-                    Text('，權重: '),
-                    IconButton( // Selection
-                      onPressed: () { setState((){ changeWeight = false; }); },
-                      icon: (changeWeight==false) ? const Icon(Icons.check_box) : const Icon(Icons.check_box_outline_blank),
-                    ),
-                    Text('預設'),
-                    IconButton( // Selection
-                      onPressed: () { setState((){ changeWeight = true; }); },
-                      icon: (changeWeight==true) ? const Icon(Icons.check_box) : const Icon(Icons.check_box_outline_blank),
-                    ),
-                    Text('自訂'),
-                  ],
-                ),
-              if(addToRoulette && changeWeight)
-                Row( // Weight slider
-                  children:[
+                    Text("吃了"),
+                    const SizedBox(width: 10),
                     SizedBox(
-                      width: 300,
-                      child: Slider(
-                        value: itemWeight,
-                        min: 0,
-                        max: 100,
-                        divisions: 20,
-                        label: '${itemWeight.round()}%',
-                        onChanged: (double value) {
-                          setState(() { itemWeight = value; });
+                      width: 125,
+                      child: DropdownButton<String>( // List
+                        value: listName.isNotEmpty ? listName : null,
+                        icon: const Icon(Icons.arrow_drop_down),
+                        isExpanded: true,
+                        onChanged: (String? newValue) {
+                          setState(() { 
+                            listName = newValue!;
+                            // Update itemName to first item of new list
+                            final items = _getItemsForList(listName);
+                            itemName = items[0];
+                          });
                         },
+                        items: localListOrder.map<DropdownMenuItem<String>>((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
+                        }).toList(),
                       ),
                     ),
+                    const SizedBox(width: 10),
+                    SizedBox(
+                      width: 125,
+                      child: DropdownButton<String>( // Food name
+                        value: itemName.isNotEmpty ? itemName : null,
+                        icon: const Icon(Icons.arrow_drop_down),
+                        isExpanded: true,
+                        onChanged: (String? newValue) {
+                          setState(() { itemName = newValue!; });
+                        },
+                        items: _getItemsForList(listName).map<DropdownMenuItem<String>>((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Column(
+                  children: [
+                    Row( // Record new food
+                      children: [
+                        Text("吃了"),
+                        const SizedBox(width: 10),
+                        SizedBox(
+                          height: 70,
+                          width: 275,
+                          child: TextFormField(
+                            controller: itemController,
+                            // The validator receives the text that the user has entered.
+                            validator: (value) { return null; },
+                            decoration: InputDecoration(
+                              border: const UnderlineInputBorder(),
+                              labelText: '',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row( // Add new food to roulette or not
+                      children: [
+                        Text('是否將新的食物登錄到轉盤?'),
+                        IconButton( // Selection
+                          onPressed: () { setState((){ addToRoulette = true; }); },
+                          icon: (addToRoulette==true) ? const Icon(Icons.check_box) : const Icon(Icons.check_box_outline_blank),
+                        ),
+                        Text('是'),
+                        IconButton( // Selection
+                          onPressed: () { setState((){ addToRoulette = false; }); },
+                          icon: (addToRoulette==false) ? const Icon(Icons.check_box) : const Icon(Icons.check_box_outline_blank),
+                        ),
+                        Text('否'),
+                      ],
+                    ),
+                    if(addToRoulette)
+                      Column(
+                        children: [
+                          Row( // Which list of the roulette to add to
+                            children: [
+                              Text('加進'),
+                              DropdownButton<String>( // List
+                                value: addToList.isNotEmpty ? addToList : null,
+                                icon: const Icon(Icons.arrow_drop_down),
+                                onChanged: (String? newValue) {
+                                  setState(() { 
+                                    addToList = newValue!;
+                                    // Update itemName to first item of new list
+                                    final items = _getItemsForList(addToList);
+                                    itemName = items[0];
+                                  });
+                                },
+                                items: localListOrder.map<DropdownMenuItem<String>>((String value) {
+                                  return DropdownMenuItem<String>(
+                                    value: value,
+                                    child: Text(value),
+                                  );
+                                }).toList(),
+                              ),
+                              Text('，權重: '),
+                              IconButton( // Selection
+                                onPressed: () { setState((){ changeWeight = false; }); },
+                                icon: (changeWeight==false) ? const Icon(Icons.check_box) : const Icon(Icons.check_box_outline_blank),
+                              ),
+                              Text('預設'),
+                              IconButton( // Selection
+                                onPressed: () { setState((){ changeWeight = true; }); },
+                                icon: (changeWeight==true) ? const Icon(Icons.check_box) : const Icon(Icons.check_box_outline_blank),
+                              ),
+                              Text('自訂'),
+                            ],
+                          ),
+                          if(changeWeight)
+                            Row( // Weight slider
+                              children:[
+                                SizedBox(
+                                  width: 300,
+                                  child: Slider(
+                                    value: itemWeight,
+                                    min: 0,
+                                    max: 100,
+                                    divisions: 20,
+                                    label: '${itemWeight.round()}%',
+                                    onChanged: (double value) {
+                                      setState(() { itemWeight = value; });
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                        ]
+                      ),
                   ],
                 ),
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: () {
                   // Validate returns true if the form is valid, or false otherwise.
-                  Navigator.pop(context,{
-                    "dateTime":dateTime,
-                    "listName":listName,
-                    "itemName":itemName,
-                    "itemWeight":itemWeight});
+                  Navigator.pop(context, DiaryEntry(
+                    dateTime: dateTime.value,
+                    listName: listName,
+                    itemName: itemName,
+                    itemWeight: itemWeight));
                 },
                 child: const Text('確定'),
               ),
