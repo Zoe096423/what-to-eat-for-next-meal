@@ -947,24 +947,24 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                     Text('自訂'),
                   ],
                 ),
-                if(changeWeight)
-                  Row( // Weight slider
-                    children:[
-                      SizedBox(
-                        width: 300,
-                        child: Slider(
-                          value: itemWeight,
-                          min: 0,
-                          max: 100,
-                          divisions: 20,
-                          label: '${itemWeight.round()}%',
-                          onChanged: (double value) {
-                            setState(() { itemWeight = value; });
-                          },
-                        ),
+              if(addToRoulette && changeWeight)
+                Row( // Weight slider
+                  children:[
+                    SizedBox(
+                      width: 300,
+                      child: Slider(
+                        value: itemWeight,
+                        min: 0,
+                        max: 100,
+                        divisions: 20,
+                        label: '${itemWeight.round()}%',
+                        onChanged: (double value) {
+                          setState(() { itemWeight = value; });
+                        },
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: () {
