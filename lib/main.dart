@@ -74,25 +74,25 @@ list<String, List<String>> loadAllLists() {
 // Functions for list edit
 void newList(String name) {
   final listsBox = Hive.box<List>('localLists');
-  final weightBox = Hive.box<Map<String,double>>('itemWeight');
+  final itemWeightBox = Hive.box<Map<String,double>>('itemitemWeight');
   if (!listsBox.containsKey(name)) { listsBox.put(name, []); }
-  if (!weightBox.containsKey(name)) { weightBox.put(name, {}); }
+  if (!itemWeightBox.containsKey(name)) { itemWeightBox.put(name, {}); }
   localListOrder.clear();
   for(int i=0;i<listsBox.length;i++){ localListOrder.add(listsBox.keyAt(i)); }
 }
 
 bool editListName(String oldName, String newName) {
   final listBox = Hive.box<List<String>>('localLists');
-  final weightBox = Hive.box<Map<String,double>>('itemWeight');
+  final itemWeightBox = Hive.box<Map<String,double>>('itemitemWeight');
   if (listBox.containsKey(newName)) { // the key already exist
     return false;
   } else if (listBox.containsKey(oldName)) {
     final list = listBox.get(oldName, defaultValue: [])!.cast<String>();
-    final weights = weightBox.get(oldName, defaultValue: <String,double>{})!.cast<String,double>();
+    final itemWeights = itemWeightBox.get(oldName, defaultValue: <String,double>{})!.cast<String,double>();
     listBox.delete(oldName);
     listBox.put(newName, list);
-    weightBox.delete(oldName);
-    weightBox.put(newName,weights);
+    itemWeightBox.delete(oldName);
+    itemWeightBox.put(newName,itemWeights);
   }
   for(int i=0;i<listBox.length;i++){
     if(localListOrder[i]==oldName){
@@ -104,59 +104,61 @@ bool editListName(String oldName, String newName) {
 
 void removeList(String name) {
   final listBox = Hive.box<List<String>>('localLists');
-  final weightBox = Hive.box<Map<String,double>>('itemWeight');
+  final itemWeightBox = Hive.box<Map<String,double>>('itemitemWeight');
   if (listBox.containsKey(name)) { listBox.delete(name); }
-  if (weightBox.containsKey(name)) { weightBox.delete(name); }
+  if (itemWeightBox.containsKey(name)) { itemWeightBox.delete(name); }
   localListOrder.clear();
   for(int i=0;i<listBox.length;i++){ localListOrder.add(listBox.keyAt(i)); }
 }
 
 void newItem(String listName,String itemName) {
   final listBox = Hive.box<List<String>>('localLists');
-  final weightBox = Hive.box<Map<String,double>>('itemWeight');
+  final itemWeightBox = Hive.box<Map<String,double>>('itemitemWeight');
   final list = listBox.get(listName, defaultValue: [])!.cast<String>();
   // ! = Force to treat data as non-null
   // cast<T>() = Force assign every data value as T types.
   listBox.put(listName, list);
-  weightBox.put(listName,{itemName:0.2}); // In progress...
+  itemWeightBox.put(listName,{itemName:0.2}); // In progress...
 }
 
 bool editItemName(String listName, String oldName, String newName) {
   final listBox = Hive.box<List<String>>('localLists');
-  final weightBox = Hive.box<Map<String,double>>('itemWeight');
+  final itemWeightBox = Hive.box<Map<String,double>>('itemitemWeight');
   final list = listBox.get(listName, defaultValue: [])!.cast<String>();
   if (list.contains(newName)) { // the key already exist
     return false;
   } else if (list.contains(oldName)) {
     final index = list.indexOf(oldName);
-    final weightsMap = weightBox.get(listName, defaultValue: <String,double>{})!.cast<String,double>();
-    final double? weight = weightsMap[oldName];
+    final itemWeightsMap = itemWeightBox.get(listName, defaultValue: <String,double>{})!.cast<String,double>();
+    final double? itemWeight = itemWeightsMap[oldName];
     list.remove(oldName);
     list.insert(index,newName);
-    weightsMap.remove(oldName);
-    weightsMap.addAll({newName:weight!});
+    itemWeightsMap.remove(oldName);
+    itemWeightsMap.addAll({newName:itemWeight!});
     listBox.delete(listName);
     listBox.put(listName, list);
-    weightBox.delete(listName);
-    weightBox.put(listName,weightsMap);
+    itemWeightBox.delete(listName);
+    itemWeightBox.put(listName,itemWeightsMap);
   } return true;
 }
 
 void removeItem(String listName, String itemName) {
   final listBox = Hive.box<List<String>>('localLists');
-  final weightBox = Hive.box<Map<String,double>>('itemWeight');
+  final itemWeightBox = Hive.box<Map<String,double>>('itemitemWeight');
   final list = listBox.get(listName, defaultValue: [])!.cast<String>();
-  final weightsMap = weightBox.get(listName, defaultValue: <String,double>{})!.cast<String,double>();
+  final itemWeightsMap = itemWeightBox.get(listName, defaultValue: <String,double>{})!.cast<String,double>();
   list.remove(itemName);
-  weightsMap.remove(itemName);
+  itemWeightsMap.remove(itemName);
   listBox.put(listName, list);
-  weightBox.put(listName,weightsMap);
+  itemWeightBox.put(listName,itemWeightsMap);
 }
 
 // Functions for diary entries
-void newDiary(DateTime dt, String listName, String itemName) {
+void newDiary(DateTime dt, String listName, String itemName, double itemWeight) {
   final box = Hive.box<Map>('diary');
+  final weight = Hive.box<Map<String,double>>('itemWeights');
   box.put(dt, {"listName":listName, "itemName":itemName});
+  weight.add({ itemName:itemWeight });
 }
 
 // Main app
@@ -729,7 +731,7 @@ class _DiaryPageState extends State<DiaryPage>{
                   ),
               );
               if (newValue != null) {
-                setState(() { newDiary(newValue.dateTime, newValue.listName, newValue.itemName); }); // In progress...
+                setState(() { newDiary(newValue.dateTime, newValue.listName, newValue.itemName, newValue.itemWeight); }); // In progress...
               }
             },
             icon: const Icon(Icons.add),
@@ -765,8 +767,14 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
   late String listName;
   late String itemName;
   late String addToList;
-  bool addToRoulette = false;
   final listsBox = Hive.box<List<String>>('localLists');
+
+  bool addToRoulette = false;
+  bool changeWeight = false;
+  double itemWeight = 0; // In progress...
+
+  final _newValue = GlobalKey<FormState>();
+  final itemController = TextEditingController();
   
   @override
   void initState() {
@@ -782,9 +790,6 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
   List<String> _getItemsForList(String list) {
     return listsBox.get(list, defaultValue: [])!.cast<String>();
   }
-
-  final _newValue = GlobalKey<FormState>();
-  final itemController = TextEditingController();
 
   @override
   void dispose() {
@@ -875,7 +880,7 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
               ),
               Row( // Record new food
                 children: [
-                  Text("或者，登錄新的食物:  "),
+                  Text("或者，今天吃了別的食物: "),
                   const SizedBox(width: 10),
                   SizedBox(
                     height: 80,
@@ -892,7 +897,7 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                   ),
                 ],
               ),
-              Row( // Add new food to roulette or not // In progress...
+              Row( // Add new food to roulette or not
                 children: [
                   Text('是否將新的食物登錄到轉盤?'),
                   IconButton( // Selection
@@ -907,30 +912,59 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                   Text('否'),
                 ],
               ),
-              Row( // Which list of the roulette to add to
-                children: [
-                  Text('加進'),
-                  DropdownButton<String>( // List
-                    value: addToList.isNotEmpty ? addToList : null,
-                    icon: const Icon(Icons.arrow_drop_down),
-                    onChanged: (String? newValue) {
-                      setState(() { 
-                        addToList = newValue!;
-                        // Update itemName to first item of new list
-                        final items = _getItemsForList(addToList);
-                        itemName = items[0];
-                      });
-                    },
-                    items: localListOrder.map<DropdownMenuItem<String>>((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
+              if(addToRoulette)
+                Row( // Which list of the roulette to add to
+                  children: [
+                    Text('加進'),
+                    DropdownButton<String>( // List
+                      value: addToList.isNotEmpty ? addToList : null,
+                      icon: const Icon(Icons.arrow_drop_down),
+                      onChanged: (String? newValue) {
+                        setState(() { 
+                          addToList = newValue!;
+                          // Update itemName to first item of new list
+                          final items = _getItemsForList(addToList);
+                          itemName = items[0];
+                        });
+                      },
+                      items: localListOrder.map<DropdownMenuItem<String>>((String value) {
+                        return DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(value),
+                        );
+                      }).toList(),
+                    ),
+                    Text('，權重: '),
+                    IconButton( // Selection
+                      onPressed: () { setState((){ changeWeight = false; }); },
+                      icon: (changeWeight==false) ? const Icon(Icons.check_box) : const Icon(Icons.check_box_outline_blank),
+                    ),
+                    Text('預設'),
+                    IconButton( // Selection
+                      onPressed: () { setState((){ changeWeight = true; }); },
+                      icon: (changeWeight==true) ? const Icon(Icons.check_box) : const Icon(Icons.check_box_outline_blank),
+                    ),
+                    Text('自訂'),
+                  ],
+                ),
+                if(changeWeight)
+                  Row( // Weight slider
+                    children:[
+                      SizedBox(
+                        width: 300,
+                        child: Slider(
+                          value: itemWeight,
+                          min: 0,
+                          max: 100,
+                          divisions: 20,
+                          label: '${itemWeight.round()}%',
+                          onChanged: (double value) {
+                            setState(() { itemWeight = value; });
+                          },
+                        ),
+                      ),
+                    ],
                   ),
-                  Text('，權重:In progress'),
-                ],
-              ),
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: () {
@@ -938,7 +972,8 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                   Navigator.pop(context,{
                     "dateTime":dateTime,
                     "listName":listName,
-                    "itemName":itemName});
+                    "itemName":itemName,
+                    "itemWeight":itemWeight});
                 },
                 child: const Text('確定'),
               ),
