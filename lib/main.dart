@@ -10,21 +10,56 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:roulette/roulette.dart';
 import 'package:hive_flutter/hive_flutter.dart'; // For local data
+import 'package:intl/intl.dart'; // For dateTime format
 
 enum RGB {R,G,B}
+String dateFormat = 'yyyy-MM-dd HH:mm';
 
-class DiaryEntry {
+class Diary {
   final DateTime dateTime;
   final String listName;
-  final String itemName;
-  final double itemWeight;
+  String itemName;
 
-  DiaryEntry({
+  Diary({
     required this.dateTime,
     required this.listName,
     required this.itemName,
+  });
+}
+
+class DiaryEntry extends Diary {
+  final double itemWeight;
+
+  DiaryEntry({
+    required super.dateTime,
+    required super.listName,
+    required super.itemName,
     required this.itemWeight,
   });
+}
+
+class DiaryAdapter extends TypeAdapter<Diary> {
+  @override
+  final int typeId = 0;
+
+  @override
+  Diary read(BinaryReader reader) {
+    final dtMillis = reader.readInt();
+    final listName = reader.readString();
+    final itemName = reader.readString();
+    return Diary(
+      dateTime: DateTime.fromMillisecondsSinceEpoch(dtMillis),
+      listName: listName,
+      itemName: itemName,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, Diary obj) {
+    writer.writeInt(obj.dateTime.millisecondsSinceEpoch);
+    writer.writeString(obj.listName);
+    writer.writeString(obj.itemName);
+  }
 }
 
 ValueNotifier<String> selectedList = ValueNotifier('午晚餐');
@@ -33,10 +68,12 @@ final List<String> localListOrder = [];
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter(); // Initialize
+  // Register adapters for custom Hive types
+  if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(DiaryAdapter());
   await Hive.openBox('settings');
   await Hive.openBox<List<String>>('localLists');
   await Hive.openBox<Map<String,double>>('itemWeights');
-  await Hive.openBox<Map<DateTime,Map>>('diary');
+  await Hive.openBox<Diary>('diary');
   await initializeDefaultLists();
   runApp(MyApp());
 }
@@ -90,7 +127,7 @@ list<String, List<String>> loadAllLists() {
 // Functions for list edit
 void newList(String name) {
   final listsBox = Hive.box<List>('localLists');
-  final itemWeightBox = Hive.box<Map<String,double>>('itemitemWeight');
+  final itemWeightBox = Hive.box<Map<String,double>>('itemWeights');
   if (!listsBox.containsKey(name)) { listsBox.put(name, []); }
   if (!itemWeightBox.containsKey(name)) { itemWeightBox.put(name, {}); }
   localListOrder.clear();
@@ -99,7 +136,7 @@ void newList(String name) {
 
 bool editListName(String oldName, String newName) {
   final listBox = Hive.box<List<String>>('localLists');
-  final itemWeightBox = Hive.box<Map<String,double>>('itemitemWeight');
+  final itemWeightBox = Hive.box<Map<String,double>>('itemWeights');
   if (listBox.containsKey(newName)) { // the key already exist
     return false;
   } else if (listBox.containsKey(oldName)) {
@@ -120,7 +157,7 @@ bool editListName(String oldName, String newName) {
 
 void removeList(String name) {
   final listBox = Hive.box<List<String>>('localLists');
-  final itemWeightBox = Hive.box<Map<String,double>>('itemitemWeight');
+  final itemWeightBox = Hive.box<Map<String,double>>('itemWeights');
   if (listBox.containsKey(name)) { listBox.delete(name); }
   if (itemWeightBox.containsKey(name)) { itemWeightBox.delete(name); }
   localListOrder.clear();
@@ -129,7 +166,7 @@ void removeList(String name) {
 
 void newItem(String listName,String itemName) {
   final listBox = Hive.box<List<String>>('localLists');
-  final itemWeightBox = Hive.box<Map<String,double>>('itemitemWeight');
+  final itemWeightBox = Hive.box<Map<String,double>>('itemWeights');
   final list = listBox.get(listName, defaultValue: [])!.cast<String>();
   // ! = Force to treat data as non-null
   // cast<T>() = Force assign every data value as T types.
@@ -139,7 +176,7 @@ void newItem(String listName,String itemName) {
 
 bool editItemName(String listName, String oldName, String newName) {
   final listBox = Hive.box<List<String>>('localLists');
-  final itemWeightBox = Hive.box<Map<String,double>>('itemitemWeight');
+  final itemWeightBox = Hive.box<Map<String,double>>('itemWeights');
   final list = listBox.get(listName, defaultValue: [])!.cast<String>();
   if (list.contains(newName)) { // the key already exist
     return false;
@@ -160,9 +197,9 @@ bool editItemName(String listName, String oldName, String newName) {
 
 void removeItem(String listName, String itemName) {
   final listBox = Hive.box<List<String>>('localLists');
-  final itemWeightBox = Hive.box<Map<String,double>>('itemitemWeight');
+  final itemWeightBox = Hive.box<Map<String,double>>('itemWeights');
   final list = listBox.get(listName, defaultValue: [])!.cast<String>();
-  final itemWeightsMap = itemWeightBox.get(listName, defaultValue: <String,double>{})!.cast<String,double>();
+  final itemWeightsMap = itemWeightBox.get(itemName, defaultValue: <String,double>{})!.cast<String,double>();
   list.remove(itemName);
   itemWeightsMap.remove(itemName);
   listBox.put(listName, list);
@@ -171,10 +208,23 @@ void removeItem(String listName, String itemName) {
 
 // Functions for diary entries
 void newDiary(DateTime dt, String listName, String itemName, double itemWeight) {
-  final box = Hive.box<Map>('diary');
+  final box = Hive.box<Diary>('diary');
   final weight = Hive.box<Map<String,double>>('itemWeights');
-  box.put(dt, {"listName":listName, "itemName":itemName});
+  box.add( Diary( dateTime:dt, listName:listName, itemName:itemName ) );
   weight.add({ itemName:itemWeight });
+}
+
+bool editDiary(DateTime oldDt, String oldListName, String oldItemName,
+               DateTime newDt, String newListName, String newItemName) {
+
+  final box = Hive.box<Diary>('diary');
+  if (box.containsKey(newDt)) { // the exact DateTime already exist
+    return false;
+  } else if (box.containsKey(oldDt)) {
+    box.delete(oldDt);
+    box.add( Diary( dateTime:newDt, listName:newListName, itemName:oldItemName ) );
+  }
+  return true;
 }
 
 // Main app
@@ -464,55 +514,55 @@ class ListEditBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder( // Refresh
-        valueListenable: selectedList,
-        builder: (context, value, child) {
-          return Card(
-            elevation: 4,
-            margin: const EdgeInsets.symmetric(vertical: 8.0),
-            color: (curList==selectedList.value) ? const Color.fromARGB(255, 191, 177, 229) : Colors.white,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: <Widget>[
-                ReorderableDragStartListener(
-                  index: Hive.box<List<String>>('localLists').keys.toList().indexOf(curList),
-                  child: IconButton( // Move layers
-                    onPressed: () {},
-                    icon: const Icon(Icons.more_vert),
+      valueListenable: selectedList,
+      builder: (context, value, child) {
+        return Card(
+          elevation: 4,
+          margin: const EdgeInsets.symmetric(vertical: 8.0),
+          color: (curList==selectedList.value) ? const Color.fromARGB(255, 191, 177, 229) : Colors.white,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: <Widget>[
+              ReorderableDragStartListener(
+                index: Hive.box<List<String>>('localLists').keys.toList().indexOf(curList),
+                child: IconButton( // Move layers
+                  onPressed: () {},
+                  icon: const Icon(Icons.more_vert),
+                ),
+              ),
+              Expanded(
+                child: Text( // List name
+                  curList,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black
                   ),
                 ),
-                Expanded(
-                  child: Text( // List name
-                    curList,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black
-                    ),
-                  ),
-                ),
-                IconButton( // Selection
-                  onPressed: () { selectedList.value = curList; },
-                  icon: (curList==selectedList.value) ? const Icon(Icons.check_box) : const Icon(Icons.check_box_outline_blank),
-                ),
-                IconButton( // Edit
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => EditItemPage(listName:curList),
-                        ),
-                      );
-                    },
-                  icon: const Icon(Icons.edit),
-                ),
-                IconButton( // Delete
-                  onPressed: () { removeList(curList); }, icon: const Icon(Icons.delete),
-                ),
-              ]
-            ),
-          );
-        },
-      );
+              ),
+              IconButton( // Selection
+                onPressed: () { selectedList.value = curList; },
+                icon: (curList==selectedList.value) ? const Icon(Icons.check_box) : const Icon(Icons.check_box_outline_blank),
+              ),
+              IconButton( // Edit
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => EditItemPage(listName:curList),
+                      ),
+                    );
+                  },
+                icon: const Icon(Icons.edit),
+              ),
+              IconButton( // Delete
+                onPressed: () { removeList(curList); }, icon: const Icon(Icons.delete),
+              ),
+            ]
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -730,7 +780,7 @@ class DiaryPage extends StatefulWidget {
 }
 
 class _DiaryPageState extends State<DiaryPage>{
-  final diaryBox = Hive.box<Map<DateTime,Map>>('diary');
+  final diaryBox = Hive.box<Diary>('diary');
 
   @override
   Widget build(BuildContext context){
@@ -743,7 +793,7 @@ class _DiaryPageState extends State<DiaryPage>{
               final newValue = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => AddOrEditDiary(),
+                  builder: (context) => AddOrEditDiary(), // In progress: fix crash
                   ),
               );
               if (newValue != null) {
@@ -756,15 +806,82 @@ class _DiaryPageState extends State<DiaryPage>{
       ),
       body: ValueListenableBuilder(
         valueListenable: diaryBox.listenable(),
-        builder: (context, value, child) {
-          return ListView.builder(
+        builder: (context, Box<Diary> box, child) {
+          var diaryList = box.values.toList();
+          return ListView.builder( // List
             padding: const EdgeInsets.all(12.0),
-            itemCount: diaryBox.length,
+            itemCount: diaryList.length,
             itemBuilder: (context, index) {
-              return Text("In progress..."); // In progress...
+              return DiaryBox(key: ValueKey(diaryList[index]), curDiary: diaryList[index], index: index);
             },
           );
         },
+      ),
+    );
+  }
+}
+
+class DiaryBox extends StatefulWidget { // In progress...
+  Diary curDiary;
+  final int index;
+  DiaryBox({super.key, required this.curDiary, required this.index});
+
+  @override
+  _DiaryBoxState createState() => _DiaryBoxState();
+}
+
+class _DiaryBoxState extends State<DiaryBox>{ // In progress...
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 4,
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      color: Colors.white,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: <Widget>[
+          const SizedBox( width: 20 ),
+          Expanded(
+            child: Text( // DateTime
+              DateFormat(dateFormat).format(widget.curDiary.dateTime),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black
+              ),
+            ),
+          ),
+          IconButton( // Edit
+            onPressed: () async {
+              final newData = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AddOrEditName(prevName:widget.curDiary.itemName),
+                ),
+              );
+              if (newData != null) {
+                final success = editDiary(widget.curDiary.dateTime, widget.curDiary.listName, widget.curDiary.itemName,
+                                          newData.dateTime, newData.listName, newData.itemName);
+                if(success){ setState(() { widget.curDiary.itemName = newData.itemName; }); }
+                else{
+                  showDialog(
+                    context: context,
+                    builder: (context) {
+                      return AlertDialog(
+                        content: Text('已經有同名的項目了!'),
+                      );
+                    },
+                  );
+                }
+              }
+            },
+            icon: const Icon(Icons.edit),
+          ),
+          IconButton( // Delete
+            onPressed: () { removeItem(widget.curDiary.listName, widget.curDiary.itemName); setState(() {}); }, icon: const Icon(Icons.delete),
+          ),
+        ]
       ),
     );
   }
@@ -832,7 +949,7 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                   ValueListenableBuilder<DateTime>(
                     valueListenable: dateTime,
                     builder: (BuildContext context, DateTime value, Widget? child) {
-                      return Text(value.toString());
+                      return Text(DateFormat(dateFormat).format(value));
                     },
                   ),
                   IconButton(
