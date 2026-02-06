@@ -821,7 +821,7 @@ class _DiaryPageState extends State<DiaryPage>{
   }
 }
 
-class DiaryBox extends StatefulWidget { // In progress...
+class DiaryBox extends StatefulWidget {
   Diary curDiary;
   final int index;
   DiaryBox({super.key, required this.curDiary, required this.index});
@@ -838,50 +838,76 @@ class _DiaryBoxState extends State<DiaryBox>{ // In progress...
       elevation: 4,
       margin: const EdgeInsets.symmetric(vertical: 8.0),
       color: Colors.white,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: <Widget>[
-          const SizedBox( width: 20 ),
-          Expanded(
-            child: Text( // DateTime
-              DateFormat(dateFormat).format(widget.curDiary.dateTime),
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black
+      child: SizedBox(
+        height: 100,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: <Widget>[
+            const SizedBox( width: 20 ),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text( // dateTime
+                    DateFormat(dateFormat).format(widget.curDiary.dateTime),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black
+                    ),
+                  ),
+                  Text( // itemName
+                    widget.curDiary.itemName,
+                    style: const TextStyle(
+                      fontSize: 23,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black
+                    ),
+                  ),
+                  if(widget.curDiary.listName!="")
+                    Text( // listName
+                      widget.curDiary.listName,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black
+                      ),
+                    ),
+                ],
               ),
             ),
-          ),
-          IconButton( // Edit
-            onPressed: () async {
-              final newData = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => AddOrEditName(prevName:widget.curDiary.itemName),
-                ),
-              );
-              if (newData != null) {
-                final success = editDiary(widget.curDiary.dateTime, widget.curDiary.listName, widget.curDiary.itemName,
-                                          newData.dateTime, newData.listName, newData.itemName);
-                if(success){ setState(() { widget.curDiary.itemName = newData.itemName; }); }
-                else{
-                  showDialog(
-                    context: context,
-                    builder: (context) {
-                      return AlertDialog(
-                        content: Text('已經有同名的項目了!'),
-                      );
-                    },
-                  );
+            IconButton( // Edit
+              onPressed: () async {
+                final newData = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AddOrEditName(prevName:widget.curDiary.itemName), // In progress...
+                  ),
+                );
+                if (newData != null) {
+                  final success = editDiary(widget.curDiary.dateTime, widget.curDiary.listName, widget.curDiary.itemName,
+                                            newData.dateTime, newData.listName, newData.itemName);
+                  if(success){ setState(() { widget.curDiary.itemName = newData.itemName; }); }
+                  else{
+                    showDialog(
+                      context: context,
+                      builder: (context) {
+                        return AlertDialog(
+                          content: Text('已經有同名的項目了!'),
+                        );
+                      },
+                    );
+                  }
                 }
-              }
-            },
-            icon: const Icon(Icons.edit),
-          ),
-          IconButton( // Delete
-            onPressed: () { removeItem(widget.curDiary.listName, widget.curDiary.itemName); setState(() {}); }, icon: const Icon(Icons.delete),
-          ),
-        ]
+              },
+              icon: const Icon(Icons.edit),
+            ),
+            IconButton( // Delete
+              onPressed: () { removeItem(widget.curDiary.listName, widget.curDiary.itemName); setState(() {}); }, icon: const Icon(Icons.delete),
+            ),
+          ]
+        ),
       ),
     );
   }
