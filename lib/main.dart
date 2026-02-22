@@ -793,7 +793,7 @@ class _DiaryPageState extends State<DiaryPage>{
               final newValue = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => AddOrEditDiary(), // In progress: fix crash
+                  builder: (context) => AddOrEditDiary(),
                   ),
               );
               if (newValue != null) {
@@ -1167,7 +1167,7 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                   Navigator.pop(context, DiaryEntry(
                     dateTime: dateTime.value,
                     listName: listName,
-                    itemName: itemName,
+                    itemName: itemController.text=='' ? itemName : itemController.text,
                     itemWeight: itemWeight));
                 },
                 child: const Text('確定'),
