@@ -908,7 +908,7 @@ class _DiaryBoxState extends State<DiaryBox>{
               },
               icon: const Icon(Icons.edit),
             ),
-            IconButton( // Delete // In progress...
+            IconButton( // Delete
               onPressed: () { removeDiary(widget.curDiary.dateTime); setState(() {}); }, icon: const Icon(Icons.delete),
             ),
           ]
@@ -1168,6 +1168,7 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: () {
+                  if(newFood && !addToRoulette){ listName = "新食物"; }
                   // Validate returns true if the form is valid, or false otherwise.
                   Navigator.pop(context, DiaryEntry(
                     dateTime: dateTime.value,
