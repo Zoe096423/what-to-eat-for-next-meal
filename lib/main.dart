@@ -896,13 +896,13 @@ class _DiaryBoxState extends State<DiaryBox>{
             ),
             IconButton( // Edit
               onPressed: () async {
-                final newData = await Navigator.push(
+                final Diary newData = await Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => AddOrEditDiary(prevValue: widget.curDiary), // In progress...
                   ),
                 );
-                if (newData != null) {
+                if (newData != widget.curDiary) {
                   final success = editDiary(widget.curDiary.dateTime, widget.curDiary.listName, widget.curDiary.itemName,
                                             newData.dateTime, newData.listName, newData.itemName);
                   if(success){ setState(() { widget.curDiary = Diary( dateTime:widget.curDiary.dateTime, listName:widget.curDiary.listName, itemName:newData.itemName ); }); }
@@ -965,7 +965,7 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
     itemName = items.isNotEmpty ? items[0] : '';
 
     // If editing
-    if (widget.prevValue!=Diary( dateTime: defaultDt, listName:'', itemName:'')) {
+    if (widget.prevValue.dateTime != defaultDt) {
       widget.edit = true;
       if(widget.prevValue.listName=='新食物') {
         newFood = true;
@@ -991,7 +991,7 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text( widget.prevValue!=Diary( dateTime: defaultDt, listName:'', itemName:'') ? '編輯日記' : '新增日記')),
+      appBar: AppBar(title: Text( widget.edit ? '編輯日記' : '新增日記')),
       body: Form(
         key: _newValue,
         child: Padding(
