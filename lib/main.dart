@@ -227,6 +227,11 @@ bool editDiary(DateTime oldDt, String oldListName, String oldItemName,
   return true;
 }
 
+void removeDiary(DateTime dt) {
+  final box = Hive.box<Diary>('diary');
+  if(box.containsKey(dt)) { box.delete(dt); }
+}
+
 // Main app
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -830,7 +835,7 @@ class DiaryBox extends StatefulWidget {
   _DiaryBoxState createState() => _DiaryBoxState();
 }
 
-class _DiaryBoxState extends State<DiaryBox>{ // In progress...
+class _DiaryBoxState extends State<DiaryBox>{
 
   @override
   Widget build(BuildContext context) {
@@ -877,7 +882,7 @@ class _DiaryBoxState extends State<DiaryBox>{ // In progress...
                 ],
               ),
             ),
-            IconButton( // Edit
+            IconButton( // Edit // In progress...
               onPressed: () async {
                 final newData = await Navigator.push(
                   context,
@@ -903,8 +908,8 @@ class _DiaryBoxState extends State<DiaryBox>{ // In progress...
               },
               icon: const Icon(Icons.edit),
             ),
-            IconButton( // Delete
-              onPressed: () { removeItem(widget.curDiary.listName, widget.curDiary.itemName); setState(() {}); }, icon: const Icon(Icons.delete),
+            IconButton( // Delete // In progress...
+              onPressed: () { removeDiary(widget.curDiary.dateTime); setState(() {}); }, icon: const Icon(Icons.delete),
             ),
           ]
         ),
