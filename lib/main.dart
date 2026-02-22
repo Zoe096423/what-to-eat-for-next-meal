@@ -11,17 +11,19 @@ import 'package:flutter/material.dart';
 import 'package:roulette/roulette.dart';
 import 'package:hive_flutter/hive_flutter.dart'; // For local data
 import 'package:intl/intl.dart'; // For dateTime format
+import 'package:const_date_time/const_date_time.dart'; //For const dateTime
 
 enum RGB {R,G,B}
 String dateFormat = 'yyyy-MM-dd HH:mm';
 String dateFormatSec = 'yyyy-MM-dd HH:mm:ss';
+const defaultDt = ConstDateTime.utc(2022, 10, 27);
 
 class Diary {
   final DateTime dateTime;
   final String listName;
-  String itemName;
+  final String itemName;
 
-  Diary({
+  const Diary({
     required this.dateTime,
     required this.listName,
     required this.itemName,
@@ -897,13 +899,13 @@ class _DiaryBoxState extends State<DiaryBox>{
                 final newData = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => AddOrEditName(prevName:widget.curDiary.itemName), // In progress...
+                    builder: (context) => AddOrEditDiary(prevValue: widget.curDiary), // In progress...
                   ),
                 );
                 if (newData != null) {
                   final success = editDiary(widget.curDiary.dateTime, widget.curDiary.listName, widget.curDiary.itemName,
                                             newData.dateTime, newData.listName, newData.itemName);
-                  if(success){ setState(() { widget.curDiary.itemName = newData.itemName; }); }
+                  if(success){ setState(() { widget.curDiary = Diary( dateTime:widget.curDiary.dateTime, listName:widget.curDiary.listName, itemName:newData.itemName ); }); }
                   else{
                     showDialog(
                       context: context,
@@ -929,8 +931,9 @@ class _DiaryBoxState extends State<DiaryBox>{
 }
 
 class AddOrEditDiary extends StatefulWidget {
-  final String prevValue;
-  AddOrEditDiary({super.key, this.prevValue = ''});
+  final Diary prevValue;
+  AddOrEditDiary({super.key, this.prevValue = const Diary( dateTime: defaultDt, listName:'', itemName:'')});
+  bool edit = false;
 
   @override
   _AddOrEditDiaryState createState() => _AddOrEditDiaryState();
@@ -954,12 +957,24 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
   @override
   void initState() {
     super.initState();
-    // Initialize listName to the first list if available
+
+    // If new entry
     listName = localListOrder.isNotEmpty ? localListOrder[0] : '';
     addToList = localListOrder.isNotEmpty ? localListOrder[0] : '';
-    // Initialize itemName to the first item of the selected list (if any)
     final items = _getItemsForList(listName);
     itemName = items.isNotEmpty ? items[0] : '';
+
+    // If editing
+    if (widget.prevValue!=Diary( dateTime: defaultDt, listName:'', itemName:'')) {
+      widget.edit = true;
+      if(widget.prevValue.listName=='新食物') {
+        newFood = true;
+        itemController.text = widget.prevValue.itemName;
+      } else {
+        listName = widget.prevValue.listName;
+        itemName = widget.prevValue.itemName;
+      }
+    }
   }
   
   List<String> _getItemsForList(String list) {
@@ -976,7 +991,7 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text((widget.prevValue=='') ? '新增日記' : '編輯日記')),
+      appBar: AppBar(title: Text( widget.prevValue!=Diary( dateTime: defaultDt, listName:'', itemName:'') ? '編輯日記' : '新增日記')),
       body: Form(
         key: _newValue,
         child: Padding(
@@ -1095,7 +1110,7 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                             validator: (value) { return null; },
                             decoration: InputDecoration(
                               border: const UnderlineInputBorder(),
-                              labelText: '',
+                              labelText: widget.edit ? widget.prevValue.itemName : '',
                             ),
                           ),
                         ),
