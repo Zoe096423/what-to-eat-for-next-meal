@@ -72,7 +72,7 @@ void main() async {
   if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(DiaryAdapter());
   await Hive.openBox('settings');
   await Hive.openBox<List<String>>('localLists');
-  await Hive.openBox<Map<String,double>>('itemWeights');
+  await Hive.openBox('itemWeights');
   await Hive.openBox<Diary>('diary');
   await initializeDefaultLists();
   runApp(MyApp());
@@ -89,13 +89,13 @@ Future<void> setInitialized() async {
 
 Future<void> initializeDefaultLists() async {
   final boxLocalLists = Hive.box<List<String>>('localLists');
-  final boxItemWeight = Hive.box<Map<String,double>>('itemWeights');
+  final boxItemWeight = Hive.box('itemWeights');
   // Initial lists
   if (boxLocalLists.isEmpty) {
     await boxLocalLists.put('早餐',['Meal 1', 'Meal 2', 'Meal 3', 'Meal 4', 'Meal 5']);
     await boxLocalLists.put('午晚餐',['Meal 1', 'Meal 2', 'Meal 3', 'Meal 4', 'Meal 5']);
-    for(int i=1;i<=5;i++){ await boxItemWeight.put('早餐', {'Meal $i':0.2}); }
-    for(int i=1;i<=5;i++){ await boxItemWeight.put('午晚餐', {'Meal $i':0.2}); }
+    await boxItemWeight.put('早餐', {'Meal 1':0.2, 'Meal 2':0.2, 'Meal 3':0.2, 'Meal 4':0.2, 'Meal 5':0.2});
+    await boxItemWeight.put('午晚餐', {'Meal 1':0.2, 'Meal 2':0.2, 'Meal 3':0.2, 'Meal 4':0.2, 'Meal 5':0.2});
   }
 
   for(int i=boxLocalLists.length-1;i>=0;i--){ localListOrder.add(boxLocalLists.keyAt(i)); }
@@ -127,21 +127,22 @@ list<String, List<String>> loadAllLists() {
 // Functions for list edit
 void newList(String name) {
   final listsBox = Hive.box<List>('localLists');
-  final itemWeightBox = Hive.box<Map<String,double>>('itemWeights');
+  final itemWeightBox = Hive.box('itemWeights');
   if (!listsBox.containsKey(name)) { listsBox.put(name, []); }
-  if (!itemWeightBox.containsKey(name)) { itemWeightBox.put(name, {}); }
+  if (!itemWeightBox.containsKey(name)) { itemWeightBox.put(name, <String,double>{}); }
   localListOrder.clear();
   for(int i=0;i<listsBox.length;i++){ localListOrder.add(listsBox.keyAt(i)); }
 }
 
 bool editListName(String oldName, String newName) {
   final listBox = Hive.box<List<String>>('localLists');
-  final itemWeightBox = Hive.box<Map<String,double>>('itemWeights');
+  final itemWeightBox = Hive.box('itemWeights');
   if (listBox.containsKey(newName)) { // the key already exist
     return false;
   } else if (listBox.containsKey(oldName)) {
     final list = listBox.get(oldName, defaultValue: [])!.cast<String>();
-    final itemWeights = itemWeightBox.get(oldName, defaultValue: <String,double>{})!.cast<String,double>();
+    final itemWeightsRaw = itemWeightBox.get(oldName, defaultValue: <String,double>{})!;
+    final itemWeights = Map<String,double>.from(itemWeightsRaw as Map);
     listBox.delete(oldName);
     listBox.put(newName, list);
     itemWeightBox.delete(oldName);
@@ -157,7 +158,7 @@ bool editListName(String oldName, String newName) {
 
 void removeList(String name) {
   final listBox = Hive.box<List<String>>('localLists');
-  final itemWeightBox = Hive.box<Map<String,double>>('itemWeights');
+  final itemWeightBox = Hive.box('itemWeights');
   if (listBox.containsKey(name)) { listBox.delete(name); }
   if (itemWeightBox.containsKey(name)) { itemWeightBox.delete(name); }
   localListOrder.clear();
@@ -166,7 +167,7 @@ void removeList(String name) {
 
 void newItem(String listName,String itemName) {
   final listBox = Hive.box<List<String>>('localLists');
-  final itemWeightBox = Hive.box<Map<String,double>>('itemWeights');
+  final itemWeightBox = Hive.box('itemWeights');
   final list = listBox.get(listName, defaultValue: [])!.cast<String>();
   // ! = Force to treat data as non-null
   // cast<T>() = Force assign every data value as T types.
@@ -176,13 +177,14 @@ void newItem(String listName,String itemName) {
 
 bool editItemName(String listName, String oldName, String newName) {
   final listBox = Hive.box<List<String>>('localLists');
-  final itemWeightBox = Hive.box<Map<String,double>>('itemWeights');
+  final itemWeightBox = Hive.box('itemWeights');
   final list = listBox.get(listName, defaultValue: [])!.cast<String>();
   if (list.contains(newName)) { // the key already exist
     return false;
   } else if (list.contains(oldName)) {
     final index = list.indexOf(oldName);
-    final itemWeightsMap = itemWeightBox.get(listName, defaultValue: <String,double>{})!.cast<String,double>();
+    final itemWeightsRaw = itemWeightBox.get(listName, defaultValue: <String,double>{})!;
+    final itemWeightsMap = Map<String,double>.from(itemWeightsRaw as Map);
     final double? itemWeight = itemWeightsMap[oldName];
     list.remove(oldName);
     list.insert(index,newName);
@@ -197,9 +199,10 @@ bool editItemName(String listName, String oldName, String newName) {
 
 void removeItem(String listName, String itemName) {
   final listBox = Hive.box<List<String>>('localLists');
-  final itemWeightBox = Hive.box<Map<String,double>>('itemWeights');
+  final itemWeightBox = Hive.box('itemWeights');
   final list = listBox.get(listName, defaultValue: [])!.cast<String>();
-  final itemWeightsMap = itemWeightBox.get(itemName, defaultValue: <String,double>{})!.cast<String,double>();
+  final rawMap = itemWeightBox.get(listName, defaultValue: <String,double>{})!;
+  final itemWeightsMap = Map<String, double>.from(rawMap as Map);
   list.remove(itemName);
   itemWeightsMap.remove(itemName);
   listBox.put(listName, list);
@@ -209,7 +212,7 @@ void removeItem(String listName, String itemName) {
 // Functions for diary entries
 void newDiary(DateTime dt, String listName, String itemName, double itemWeight) {
   final box = Hive.box<Diary>('diary');
-  final weight = Hive.box<Map<String,double>>('itemWeights');
+  final weight = Hive.box('itemWeights');
   box.add( Diary( dateTime:dt, listName:listName, itemName:itemName ) );
   weight.add({ itemName:itemWeight });
 }
@@ -882,7 +885,7 @@ class _DiaryBoxState extends State<DiaryBox>{
                 ],
               ),
             ),
-            IconButton( // Edit // In progress...
+            IconButton( // Edit
               onPressed: () async {
                 final newData = await Navigator.push(
                   context,
