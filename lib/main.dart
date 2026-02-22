@@ -18,6 +18,33 @@ String dateFormat = 'yyyy-MM-dd HH:mm';
 String dateFormatSec = 'yyyy-MM-dd HH:mm:ss';
 const defaultDt = ConstDateTime.utc(2022, 10, 27);
 
+class Tag {
+  final String name;
+  bool enable = true;
+  Tag({ required this.name, this.enable = true });
+}
+
+class TagAdapter extends TypeAdapter<Tag> {
+  @override
+  final int typeId = 0;
+
+  @override
+  Tag read(BinaryReader reader) {
+    final name = reader.readString();
+    final enable = reader.readBool();
+    return Tag(
+      name: name,
+      enable: enable,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, Tag obj) {
+    writer.writeString(obj.name);
+    writer.writeBool(obj.enable);
+  }
+}
+
 class Diary {
   final DateTime dateTime;
   final String listName;
