@@ -14,6 +14,7 @@ import 'package:intl/intl.dart'; // For dateTime format
 
 enum RGB {R,G,B}
 String dateFormat = 'yyyy-MM-dd HH:mm';
+String dateFormatSec = 'yyyy-MM-dd HH:mm:ss';
 
 class Diary {
   final DateTime dateTime;
@@ -206,14 +207,16 @@ void removeItem(String listName, String itemName) {
   list.remove(itemName);
   itemWeightsMap.remove(itemName);
   listBox.put(listName, list);
-  itemWeightBox.put(listName,itemWeightsMap);
+  itemWeightBox.put(listName, itemWeightsMap);
 }
 
 // Functions for diary entries
 void newDiary(DateTime dt, String listName, String itemName, double itemWeight) {
   final box = Hive.box<Diary>('diary');
   final weight = Hive.box('itemWeights');
-  box.add( Diary( dateTime:dt, listName:listName, itemName:itemName ) );
+  String dtKey = DateFormat(dateFormatSec).format(dt);
+
+  box.put( dtKey, Diary( dateTime:dt, listName:listName, itemName:itemName ) );
   weight.add({ itemName:itemWeight });
 }
 
@@ -221,18 +224,22 @@ bool editDiary(DateTime oldDt, String oldListName, String oldItemName,
                DateTime newDt, String newListName, String newItemName) {
 
   final box = Hive.box<Diary>('diary');
-  if (box.containsKey(newDt)) { // the exact DateTime already exist
+  String newDtKey = DateFormat(dateFormatSec).format(newDt);
+  String oldDtKey = DateFormat(dateFormatSec).format(oldDt);
+
+  if (box.containsKey(newDtKey)) { // the exact DateTime already exist
     return false;
-  } else if (box.containsKey(oldDt)) {
-    box.delete(oldDt);
-    box.add( Diary( dateTime:newDt, listName:newListName, itemName:oldItemName ) );
+  } else if (box.containsKey(oldDtKey)) {
+    box.delete(oldDtKey);
+    box.put( newDtKey, Diary( dateTime:newDt, listName:newListName, itemName:oldItemName ) );
   }
   return true;
 }
 
 void removeDiary(DateTime dt) {
   final box = Hive.box<Diary>('diary');
-  if(box.containsKey(dt)) { box.delete(dt); }
+  String dtKey = DateFormat(dateFormatSec).format(dt);
+  if(box.containsKey(dtKey)) { box.delete(dtKey); }
 }
 
 // Main app
