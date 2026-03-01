@@ -179,7 +179,6 @@ void main() async {
   // after migration the box remains open for normal (untyped) usage
   //Hive.box<List<Item>>('localLists').clear(); //debug
 
-  await Hive.openBox('itemWeights');
   await Hive.openBox<Diary>('diary');
   await initializeDefaultLists();
   runApp(MyApp());
@@ -196,13 +195,10 @@ Future<void> setInitialized() async {
 
 Future<void> initializeDefaultLists() async {
   final boxLocalLists = Hive.box('localLists');
-  final boxItemWeight = Hive.box('itemWeights');
   // Initial lists
   if (boxLocalLists.isEmpty) {
     await boxLocalLists.put('早餐',[ Item(name:'Meal 1'), Item(name:'Meal 2'), Item(name:'Meal 3'), Item(name:'Meal 4'), Item(name:'Meal 5') ]);
     await boxLocalLists.put('午晚餐',[ Item(name:'Meal 1'), Item(name:'Meal 2'), Item(name:'Meal 3'), Item(name:'Meal 4'), Item(name:'Meal 5') ]);
-    await boxItemWeight.put('早餐', {'Meal 1':0.2, 'Meal 2':0.2, 'Meal 3':0.2, 'Meal 4':0.2, 'Meal 5':0.2});
-    await boxItemWeight.put('午晚餐', {'Meal 1':0.2, 'Meal 2':0.2, 'Meal 3':0.2, 'Meal 4':0.2, 'Meal 5':0.2});
   }
 
   for(int i=boxLocalLists.length-1;i>=0;i--){ localListOrder.add(boxLocalLists.keyAt(i)); }
@@ -234,26 +230,19 @@ list<String, List<String>> loadAllLists() {
 // Functions for list edit
 void newList(String name) {
   final listsBox = Hive.box('localLists');
-  final itemWeightBox = Hive.box('itemWeights');
   if (!listsBox.containsKey(name)) { listsBox.put(name, <Item>[]); }
-  if (!itemWeightBox.containsKey(name)) { itemWeightBox.put(name, <String,double>{}); }
   localListOrder.clear();
   for(int i=0;i<listsBox.length;i++){ localListOrder.add(listsBox.keyAt(i)); }
 }
 
 bool editListName(String oldName, String newName) {
   final listBox = Hive.box('localLists');
-  final itemWeightBox = Hive.box('itemWeights');
   if (listBox.containsKey(newName)) { // the key already exist
     return false;
   } else if (listBox.containsKey(oldName)) {
     final list = readItemList(oldName);
-    final itemWeightsRaw = itemWeightBox.get(oldName, defaultValue: <String,double>{})!;
-    final itemWeights = Map<String,double>.from(itemWeightsRaw as Map);
     listBox.delete(oldName);
     listBox.put(newName, list);
-    itemWeightBox.delete(oldName);
-    itemWeightBox.put(newName,itemWeights);
   }
   for(int i=0;i<listBox.length;i++){
     if(localListOrder[i]==oldName){
@@ -265,67 +254,48 @@ bool editListName(String oldName, String newName) {
 
 void removeList(String name) {
   final listBox = Hive.box('localLists');
-  final itemWeightBox = Hive.box('itemWeights');
   if (listBox.containsKey(name)) { listBox.delete(name); }
-  if (itemWeightBox.containsKey(name)) { itemWeightBox.delete(name); }
   localListOrder.clear();
   for(int i=0;i<listBox.length;i++){ localListOrder.add(listBox.keyAt(i)); }
 }
 
 void newItem(String listName,String itemName) {
   final listBox = Hive.box('localLists');
-  final itemWeightBox = Hive.box('itemWeights');
   final list = readItemList(listName);
   // ! = Force to treat data as non-null
   // cast<T>() = Force assign every data value as T types.
   list.add( Item(name:itemName) );
   listBox.put(listName, list);
-  itemWeightBox.put(listName,{itemName:1}); // In progress...
 }
 
 bool editItemName(Item item, String listName, String newName) {
   final listBox = Hive.box('localLists');
-  final itemWeightBox = Hive.box('itemWeights');
   final list = readItemList(listName);
   final nameList = list.map((item) => item.name).toList();
   if (nameList.contains(newName)) { // the name already exist
     return false;
   } else if (nameList.contains(item.name)) {
     final index = nameList.indexOf(item.name);
-    final itemWeightsRaw = itemWeightBox.get(listName, defaultValue: <String,double>{})!;
-    final itemWeightsMap = Map<String,double>.from(itemWeightsRaw as Map);
-    final double? itemWeight = itemWeightsMap[item.name];
     list.remove(item);
     list.insert(index,Item(name:newName, weight:item.weight, tags:item.tags));
-    itemWeightsMap.remove(item.name);
-    itemWeightsMap.addAll({newName:itemWeight!});
     listBox.delete(listName);
     listBox.put(listName, list);
-    itemWeightBox.delete(listName);
-    itemWeightBox.put(listName,itemWeightsMap);
   } return true;
 }
 
 void removeItem(String listName, Item item) {
   final listBox = Hive.box('localLists');
-  final itemWeightBox = Hive.box('itemWeights');
   final list = readItemList(listName);
-  final rawMap = itemWeightBox.get(listName, defaultValue: <String,double>{})!;
-  final itemWeightsMap = Map<String, double>.from(rawMap as Map);
   list.remove(item);
-  itemWeightsMap.remove(item.name);
   listBox.put(listName, list);
-  itemWeightBox.put(listName, itemWeightsMap);
 }
 
 // Functions for diary entries
 void newDiary(DateTime dt, String listName, String itemName, double itemWeight) {
   final box = Hive.box<Diary>('diary');
-  final weight = Hive.box('itemWeights');
   String dtKey = DateFormat(dateFormatSec).format(dt);
 
   box.put( dtKey, Diary( dateTime:dt, listName:listName, itemName:itemName ) );
-  weight.add({ itemName:itemWeight });
 }
 
 bool editDiary(DateTime oldDt, String oldListName, String oldItemName,
