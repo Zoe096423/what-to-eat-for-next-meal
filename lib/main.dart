@@ -841,7 +841,10 @@ class _ItemEditBoxState extends State<ItemEditBox>{
               );
               if (newName != null) {
                 final success = editItemName(widget.curItem, widget.curList, newName);
-                if(success){ setState(() { widget.curItem = newName; }); }
+                if(success){ setState(() {
+                  Item newItem = Item( name:newName, weight:widget.curItem.weight, tags:widget.curItem.tags );
+                  widget.curItem = newItem;
+                }); }
                 else{
                   showDialog(
                     context: context,
