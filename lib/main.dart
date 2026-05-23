@@ -7,6 +7,7 @@
 // In progress: Change the app icon and name.
 
 import 'dart:math';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:roulette/roulette.dart';
 import 'package:hive_flutter/hive_flutter.dart'; // For local data
@@ -18,6 +19,23 @@ String dateFormat = 'yyyy-MM-dd HH:mm';
 String dateFormatSec = 'yyyy-MM-dd HH:mm:ss';
 const defaultDt = ConstDateTime.utc(2022, 10, 27);
 
+class MultiValueListenableBuilder extends AnimatedWidget {
+  final List<ValueListenable> listenables;
+  final WidgetBuilder builder;
+
+  MultiValueListenableBuilder({
+    super.key,
+    required this.listenables,
+    required this.builder,
+  }) : super(listenable: Listenable.merge(listenables));
+
+  @override
+  Widget build(BuildContext context) {
+    return builder(context);
+  }
+}
+
+// Classes
 class Tag {
   final String name;
   bool enable = true;
@@ -227,6 +245,24 @@ list<String, List<String>> loadAllLists() {
   };
 }*/
 
+// Functions for roulette edit
+void updateWeights(){
+  // In progress: in the chosen list, turn everything's item.weight to 1 before further changes.
+  final diaryBox = Hive.box<Diary>('diary');
+  for (var date in diaryBox.keys) {
+    var daysBefore = DateTime.now().difference(diaryBox.get(date)!.dateTime).inDays;
+    var newWeight = 0.2*daysBefore-0.6;
+    if(newWeight<0){ newWeight=0; }
+    else if(newWeight>1){ newWeight=1; }
+
+    var value = diaryBox.get(date);
+    final list = readItemList(value!.listName);
+    final nameList = list.map((item) => item.name).toList();
+    final index = nameList.indexOf(value.itemName);
+    editItemWeight(list[index],value.listName,0);
+  }
+}
+
 // Functions for list edit
 void newList(String name) {
   final listsBox = Hive.box('localLists');
@@ -278,6 +314,19 @@ bool editItemName(Item item, String listName, String newName) {
     final index = nameList.indexOf(item.name);
     list.remove(item);
     list.insert(index,Item(name:newName, weight:item.weight, tags:item.tags));
+    listBox.delete(listName);
+    listBox.put(listName, list);
+  } return true;
+}
+
+bool editItemWeight(Item item, String listName, double newWeight) {
+  final listBox = Hive.box('localLists');
+  final list = readItemList(listName);
+  final nameList = list.map((item) => item.name).toList();
+  if (nameList.contains(item.name)) {
+    final index = nameList.indexOf(item.name);
+    list.remove(item);
+    list.insert(index,Item(name:item.name, weight:newWeight, tags:item.tags));
     listBox.delete(listName);
     listBox.put(listName, list);
   } return true;
@@ -421,13 +470,20 @@ class RoulettePageState extends State<RoulettePage>{
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<String>(
-      valueListenable: selectedList,
-      builder: (context, selected, child) {
+    return MultiValueListenableBuilder(
+      listenables: [selectedList,Hive.box('localLists').listenable(),Hive.box<Diary>('diary').listenable()],
+      builder: (context) {
         return ValueListenableBuilder<Box>(
           valueListenable: Hive.box('localLists').listenable(),
           builder: (context, box, child) {
-            final roulettelist = readItemList(selected).map((item) => item.name).toList();
+            final roulettelistRaw = readItemList(selectedList.value).toList();
+
+            // Update item weights depending on diary entries
+            final List<Item> roulettelist = [];
+            updateWeights();
+            for(var item in roulettelistRaw){
+              if(item.weight!=0){ roulettelist.add(item); }
+            }
 
             // Color control
             final List<Color> colors = <Color>[];
@@ -441,14 +497,18 @@ class RoulettePageState extends State<RoulettePage>{
             }
 
             // Generating roulette
-            late final group = RouletteGroup.uniform(
-              roulettelist.length,
-              colorBuilder: (index) => colors[index%colors.length],
-              textBuilder: (index) => roulettelist[index],
-              textStyleBuilder: (index) {
-                return const TextStyle(color: Colors.black, fontWeight: FontWeight.bold);
-              },
-            );
+            final units = <RouletteUnit>[];
+            for (int i = 0; i < roulettelist.length; i += 1) {
+              units.add(
+                RouletteUnit(
+                  text: roulettelist[i].name,
+                  color: colors[i%colors.length],
+                  textStyle:const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                  weight: roulettelist[i].weight,
+                ),
+              );
+            }
+            late final group = RouletteGroup(units);
 
             return Scaffold(
               appBar: AppBar( title: Text('等下吃什麼?'), ),
@@ -482,7 +542,7 @@ class RoulettePageState extends State<RoulettePage>{
                             children: [
                               Padding(
                                 padding: const EdgeInsets.only(top: 5),
-                                child: Text(selected),
+                                child: Text(selectedList.value),
                               ),
                               Padding(
                                 padding: const EdgeInsets.only(top: 20),
@@ -512,7 +572,7 @@ class RoulettePageState extends State<RoulettePage>{
                               );
                   
                               if (completed) {
-                                String result = roulettelist[resultInt];
+                                String result = roulettelist[resultInt].name;
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(content: Text(result)),
                                 );
