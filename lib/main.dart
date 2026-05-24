@@ -247,9 +247,15 @@ list<String, List<String>> loadAllLists() {
 
 // Functions for roulette edit
 void updateWeights(){
-  // In progress: in the chosen list, turn everything's item.weight to 1 before further changes.
+  final listBox = Hive.box('localLists');
   final diaryBox = Hive.box<Diary>('diary');
-  for (var date in diaryBox.keys) {
+  for(var listName in listBox.keys){ // Reset all weights before changes
+    final list = listBox.get(listName);
+    for(var item in list){
+      editItemWeight(item,listName,1);
+    }
+  }
+  for (var date in diaryBox.keys) { // If this food was recently ate, lower the weight
     var daysBefore = DateTime.now().difference(diaryBox.get(date)!.dateTime).inDays;
     var newWeight = 0.2*daysBefore-0.6;
     if(newWeight<0){ newWeight=0; }
@@ -259,7 +265,7 @@ void updateWeights(){
     final list = readItemList(value!.listName);
     final nameList = list.map((item) => item.name).toList();
     final index = nameList.indexOf(value.itemName);
-    editItemWeight(list[index],value.listName,0);
+    editItemWeight(list[index],value.listName,newWeight);
   }
 }
 
@@ -478,7 +484,7 @@ class RoulettePageState extends State<RoulettePage>{
           builder: (context, box, child) {
             final roulettelistRaw = readItemList(selectedList.value).toList();
 
-            // Update item weights depending on diary entries
+            // Update item weights depending on tags(in progress), diary entries
             final List<Item> roulettelist = [];
             updateWeights();
             for(var item in roulettelistRaw){
