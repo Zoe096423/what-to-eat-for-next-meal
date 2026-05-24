@@ -40,11 +40,11 @@ static void my_application_activate(GApplication* application) {
   if (use_header_bar) {
     GtkHeaderBar* header_bar = GTK_HEADER_BAR(gtk_header_bar_new());
     gtk_widget_show(GTK_WIDGET(header_bar));
-    gtk_header_bar_set_title(header_bar, "what_to_eat_for_next_meal");
+    gtk_header_bar_set_title(header_bar, "等下吃什麼");
     gtk_header_bar_set_show_close_button(header_bar, TRUE);
     gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
   } else {
-    gtk_window_set_title(window, "what_to_eat_for_next_meal");
+    gtk_window_set_title(window, "等下吃什麼");
   }
 
   gtk_window_set_default_size(window, 1280, 720);
