@@ -1,7 +1,7 @@
 // ignore_for_file: use_build_context_synchronously, library_private_types_in_public_api, must_be_immutable
 // Roulette source: https://pub.dev/packages/roulette
 
-// In progress: Make the diary page functionable.
+// In progress: Page EditItemState works hella wonky. Fix it.
 // In progress: Make item weights change, and make the roulette reflect weight changes.
 // In progress: Add the function of manually changing the percentage in editItem.
 // In progress: Change the app icon and name.
@@ -287,7 +287,7 @@ void removeList(String name) {
   for(int i=0;i<listBox.length;i++){ localListOrder.add(listBox.keyAt(i)); }
 }
 
-void newItem(String listName,String itemName) {
+void newItem(String listName, String itemName) {
   final listBox = Hive.box('localLists');
   final list = readItemList(listName);
   // ! = Force to treat data as non-null
@@ -352,13 +352,12 @@ void newDiary(DateTime dt, String listName, String itemName, double itemWeight) 
   box.put( dtKey, Diary( dateTime:dt, listName:listName, itemName:itemName ) );
 }
 
-bool editDiary(DateTime oldDt, String oldListName, String oldItemName, DateTime newDt, String newListName, String newItemName) {
+void editDiary(DateTime oldDt, String oldListName, String oldItemName, DateTime newDt, String newListName, String newItemName) {
   final box = Hive.box<Diary>('diary');
   String newDtKey = DateFormat(dateFormatSec).format(newDt);
   String oldDtKey = DateFormat(dateFormatSec).format(oldDt);
   box.delete(oldDtKey);
   box.put( newDtKey, Diary( dateTime:newDt, listName:newListName, itemName:newItemName ) );
-  return true;
 }
 
 void removeDiary(DateTime dt) {
@@ -510,9 +509,6 @@ class RoulettePageState extends State<RoulettePage>{
             }
             late final group = RouletteGroup(units);
 
-            print(roulettelist.length); //debug
-            print(colors.length); //debug
-
             return Scaffold(
               appBar: AppBar( title: Text('等下吃什麼?'), ),
               body: Column(
@@ -649,7 +645,7 @@ class _EditListPageState extends State<EditListPage> {
             padding: const EdgeInsets.all(12.0),
             itemCount: box.length,
             onReorder: (oldIndex, newIndex) {
-              if (newIndex > oldIndex) newIndex -= 1;
+              if (newIndex > box.length) newIndex -= 1;
               final key = localListOrder.removeAt(oldIndex);
               localListOrder.insert(newIndex, key);
             },
@@ -844,9 +840,9 @@ class _EditItemPageState extends State<EditItemPage> {
             padding: const EdgeInsets.all(12.0),
             itemCount: itemList.length,
             onReorder: (oldIndex, newIndex) {
-              if (newIndex > oldIndex) newIndex -= 1;
-              final key = itemList.removeAt(oldIndex);
-              itemList.insert(newIndex, key);
+              if (newIndex > itemList.length) newIndex -= 1;
+              final key = listBox.get(widget.listName).removeAt(oldIndex);
+              listBox.get(widget.listName).insert(newIndex, key);
             },
             itemBuilder: (context, index) {
               return ItemEditBox(key: ValueKey(itemList[index]), curList: widget.listName, curItem: itemList[index], index: index);
@@ -858,17 +854,11 @@ class _EditItemPageState extends State<EditItemPage> {
   }
 }
 
-class ItemEditBox extends StatefulWidget {
+class ItemEditBox extends StatelessWidget {
   final String curList;
   Item curItem;
   final int index;
   ItemEditBox({super.key, required this.curList, required this.curItem, required this.index});
-
-  @override
-  _ItemEditBoxState createState() => _ItemEditBoxState();
-}
-
-class _ItemEditBoxState extends State<ItemEditBox>{
 
   @override
   Widget build(BuildContext context) {
@@ -880,7 +870,7 @@ class _ItemEditBoxState extends State<ItemEditBox>{
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: <Widget>[
           ReorderableDragStartListener(
-            index: widget.index,
+            index: index,
             child: IconButton( // Move layers
               onPressed: () {},
               icon: const Icon(Icons.more_vert),
@@ -888,7 +878,7 @@ class _ItemEditBoxState extends State<ItemEditBox>{
           ),
           Expanded(
             child: Text( // List name
-              widget.curItem.name,
+              curItem.name,
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -901,15 +891,15 @@ class _ItemEditBoxState extends State<ItemEditBox>{
               final newName = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => AddOrEditName(prevName:widget.curItem.name),
+                  builder: (context) => AddOrEditName(prevName:curItem.name),
                 ),
               );
               if (newName != null) {
-                final success = editItemName(widget.curItem, widget.curList, newName);
-                if(success){ setState(() {
-                  Item newItem = Item( name:newName, weight:widget.curItem.weight, tags:widget.curItem.tags );
-                  widget.curItem = newItem;
-                }); }
+                final success = editItemName(curItem, curList, newName);
+                if(success){
+                  Item newItem = Item( name:newName, weight:curItem.weight, tags:curItem.tags );
+                  curItem = newItem;
+                }
                 else{
                   showDialog(
                     context: context,
@@ -923,9 +913,9 @@ class _ItemEditBoxState extends State<ItemEditBox>{
               }
             },
             icon: const Icon(Icons.edit),
-          ),
+          ), // Bug: does nothing
           IconButton( // Delete
-            onPressed: () { removeItem(widget.curList, widget.curItem); setState(() {}); }, icon: const Icon(Icons.delete),
+            onPressed: () { removeItem(curList, curItem); }, icon: const Icon(Icons.delete), // Bug: does nothing
           ),
         ]
       ),
@@ -1052,26 +1042,8 @@ class _DiaryBoxState extends State<DiaryBox>{
                   newData.dateTime ??= widget.curDiary.dateTime;
                   newData.listName ??= widget.curDiary.listName;
                   newData.itemName ??= widget.curDiary.itemName;
-                  final success = editDiary(widget.curDiary.dateTime, widget.curDiary.listName, widget.curDiary.itemName,
-                                            newData.dateTime, newData.listName, newData.itemName);
-                  print(widget.curDiary.dateTime); //debug
-                  print(widget.curDiary.listName); //debug
-                  print(widget.curDiary.itemName); //debug
-                  print(newData.dateTime); //debug
-                  print(newData.listName); //debug
-                  print(newData.itemName); //debug
-                  if(success){
-                    setState(() { widget.curDiary = Diary( dateTime:newData.dateTime, listName:newData.listName, itemName:newData.itemName ); });
-                  } else{
-                    showDialog(
-                      context: context,
-                      builder: (context) {
-                        return AlertDialog(
-                          content: Text('已經有同名的項目了!'),
-                        );
-                      },
-                    );
-                  }
+                  editDiary(widget.curDiary.dateTime, widget.curDiary.listName, widget.curDiary.itemName, newData.dateTime, newData.listName, newData.itemName);
+                  setState(() { widget.curDiary = Diary( dateTime:newData.dateTime, listName:newData.listName, itemName:newData.itemName ); });
                 }
               },
               icon: const Icon(Icons.edit),
@@ -1212,14 +1184,14 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                     SizedBox(
                       width: 125,
                       child: DropdownButton<String>( // List
-                        value: listName.isNotEmpty ? listName : null,
+                        value: (listName.isNotEmpty && localListOrder.any((element) => element == listName)) ? listName : null,
                         icon: const Icon(Icons.arrow_drop_down),
                         isExpanded: true,
                         onChanged: (String? newValue) {
                           setState(() { 
                             listName = newValue!;
                             // Update itemName to first item of new list
-                            final items = _getItemNamesForList(listName);
+                            items = _getItemNamesForList(listName);
                             itemName = items[0];
                           });
                         },
@@ -1241,7 +1213,7 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                         onChanged: (String? newValue) {
                           setState(() { itemName = newValue!; });
                         },
-                        items: _getItemNamesForList(listName).map<DropdownMenuItem<String>>((String value) {
+                        items: items.map<DropdownMenuItem<String>>((String value) {
                           return DropdownMenuItem<String>(
                             value: value,
                             child: Text(value),
@@ -1300,9 +1272,6 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                                 onChanged: (String? newValue) {
                                   setState(() { 
                                     addToList = newValue!;
-                                    // Update itemName to first item of new list
-                                    final items = _getItemNamesForList(addToList);
-                                    itemName = items[0];
                                   });
                                 },
                                 items: localListOrder.map<DropdownMenuItem<String>>((String value) {
@@ -1351,6 +1320,7 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
               FilledButton(
                 onPressed: () {
                   if(newFood && !addToRoulette){ listName = "新食物"; }
+                  if(addToList.isNotEmpty){ newItem(addToList, itemName); }
                   // Validate returns true if the form is valid, or false otherwise.
                   Navigator.pop(context, DiaryEntry(
                     dateTime: widget.edit ? widget.prevValue.dateTime : dateTime.value,
