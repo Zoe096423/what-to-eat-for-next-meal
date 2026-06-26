@@ -249,7 +249,9 @@ void updateWeights(){
     final list = readItemList(value!.listName);
     final nameList = list.map((item) => item.name).toList();
     final index = nameList.indexOf(value.itemName);
-    editItemWeight(list[index],value.listName,newWeight);
+    if(index!=-1){
+      editItemWeight(list[index],value.listName,newWeight);
+    }
   }
 }
 
@@ -330,9 +332,9 @@ void removeItem(String listName, Item item) {
 }
 
 // Functions for diary entries
-List<Item> readItemList(String key) {
+List<Item> readItemList(String listName) {
   final box = Hive.box('localLists');
-  final raw = box.get(key);
+  final raw = box.get(listName);
   if (raw is List) {
     final List<Item> output = [];
     for (var element in raw) {
@@ -350,19 +352,12 @@ void newDiary(DateTime dt, String listName, String itemName, double itemWeight) 
   box.put( dtKey, Diary( dateTime:dt, listName:listName, itemName:itemName ) );
 }
 
-bool editDiary(DateTime oldDt, String oldListName, String oldItemName,
-               DateTime newDt, String newListName, String newItemName) {
-
+bool editDiary(DateTime oldDt, String oldListName, String oldItemName, DateTime newDt, String newListName, String newItemName) {
   final box = Hive.box<Diary>('diary');
   String newDtKey = DateFormat(dateFormatSec).format(newDt);
   String oldDtKey = DateFormat(dateFormatSec).format(oldDt);
-
-  if (box.containsKey(newDtKey)) { // the exact DateTime already exist
-    return false;
-  } else if (box.containsKey(oldDtKey)) {
-    box.delete(oldDtKey);
-    box.put( newDtKey, Diary( dateTime:newDt, listName:newListName, itemName:oldItemName ) );
-  }
+  box.delete(oldDtKey);
+  box.put( newDtKey, Diary( dateTime:newDt, listName:newListName, itemName:newItemName ) );
   return true;
 }
 
@@ -514,6 +509,9 @@ class RoulettePageState extends State<RoulettePage>{
               );
             }
             late final group = RouletteGroup(units);
+
+            print(roulettelist.length); //debug
+            print(colors.length); //debug
 
             return Scaffold(
               appBar: AppBar( title: Text('等下吃什麼?'), ),
@@ -1044,17 +1042,27 @@ class _DiaryBoxState extends State<DiaryBox>{
             ),
             IconButton( // Edit
               onPressed: () async {
-                final Diary newData = await Navigator.push(
+                final newData = await Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => AddOrEditDiary(prevValue: widget.curDiary), // In progress...
                   ),
                 );
-                if (newData != widget.curDiary) {
+                if (newData!=null && newData!=widget.curDiary) {
+                  newData.dateTime ??= widget.curDiary.dateTime;
+                  newData.listName ??= widget.curDiary.listName;
+                  newData.itemName ??= widget.curDiary.itemName;
                   final success = editDiary(widget.curDiary.dateTime, widget.curDiary.listName, widget.curDiary.itemName,
                                             newData.dateTime, newData.listName, newData.itemName);
-                  if(success){ setState(() { widget.curDiary = Diary( dateTime:widget.curDiary.dateTime, listName:widget.curDiary.listName, itemName:newData.itemName ); }); }
-                  else{
+                  print(widget.curDiary.dateTime); //debug
+                  print(widget.curDiary.listName); //debug
+                  print(widget.curDiary.itemName); //debug
+                  print(newData.dateTime); //debug
+                  print(newData.listName); //debug
+                  print(newData.itemName); //debug
+                  if(success){
+                    setState(() { widget.curDiary = Diary( dateTime:newData.dateTime, listName:newData.listName, itemName:newData.itemName ); });
+                  } else{
                     showDialog(
                       context: context,
                       builder: (context) {
@@ -1093,6 +1101,7 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
   late String itemName;
   late String addToList;
   final listsBox = Hive.box('localLists');
+  late List<String> items;
 
   bool newFood = false;
   bool addToRoulette = false;
@@ -1106,10 +1115,9 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
   void initState() {
     super.initState();
 
-    // If new entry
     listName = localListOrder.isNotEmpty ? localListOrder[0] : '';
     addToList = localListOrder.isNotEmpty ? localListOrder[0] : '';
-    final items = _getItemNamesForList(listName);
+    items = _getItemNamesForList(listName);
     itemName = items.isNotEmpty ? items[0] : '';
 
     // If editing
@@ -1121,6 +1129,7 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
       } else {
         listName = widget.prevValue.listName;
         itemName = widget.prevValue.itemName;
+        items = _getItemNamesForList(listName);
       }
     }
   }
@@ -1160,12 +1169,12 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                     onPressed: () async {
                       final DateTime? pickedDate = await showDatePicker(
                         context: context,
-                        initialDate: dateTime.value,
+                        initialDate: widget.edit ? widget.prevValue.dateTime : dateTime.value,
                         firstDate: DateTime(dateTime.value.year-1),
                         lastDate: DateTime(dateTime.value.year+1),
                       );
                       final TimeOfDay? pickedTime = await showTimePicker(
-                        initialTime: TimeOfDay.now(),
+                        initialTime: widget.edit ? TimeOfDay.fromDateTime(widget.prevValue.dateTime) : TimeOfDay.now(),
                         context: context,
                       );
                       if(pickedDate!=null && pickedTime!=null){
@@ -1226,7 +1235,7 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                     SizedBox(
                       width: 125,
                       child: DropdownButton<String>( // Food name
-                        value: itemName.isNotEmpty ? itemName : null,
+                        value: (itemName.isNotEmpty && items.any((element) => element == itemName)) ? itemName : null,
                         icon: const Icon(Icons.arrow_drop_down),
                         isExpanded: true,
                         onChanged: (String? newValue) {
@@ -1344,7 +1353,7 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                   if(newFood && !addToRoulette){ listName = "新食物"; }
                   // Validate returns true if the form is valid, or false otherwise.
                   Navigator.pop(context, DiaryEntry(
-                    dateTime: dateTime.value,
+                    dateTime: widget.edit ? widget.prevValue.dateTime : dateTime.value,
                     listName: listName,
                     itemName: itemController.text=='' ? itemName : itemController.text,
                     itemWeight: itemWeight));
