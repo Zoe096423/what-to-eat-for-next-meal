@@ -163,22 +163,6 @@ void migration(Box box, String listName) {
   box.put(listName, items);
 }
 
-// Helper that always returns a fresh List<Item> regardless of what Hive stored.
-List<Item> readItemList(String key) {
-  final box = Hive.box('localLists');
-  final raw = box.get(key);
-  if (raw is List) {
-    final List<Item> output = [];
-    for (var element in raw) {
-      if (element is Item) { output.add(element); }
-      else if (element is String) { output.add(Item(name: element)); }
-      else { output.add(Item(name: element?.toString() ?? '')); }
-    }
-    return output;
-  }
-  return <Item>[];
-}
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter(); // Initialize
@@ -346,6 +330,19 @@ void removeItem(String listName, Item item) {
 }
 
 // Functions for diary entries
+List<Item> readItemList(String key) {
+  final box = Hive.box('localLists');
+  final raw = box.get(key);
+  if (raw is List) {
+    final List<Item> output = [];
+    for (var element in raw) {
+      if (element is Item) { output.add(element); }
+      else if (element is String) { output.add(Item(name: element)); }
+      else { output.add(Item(name: element?.toString() ?? '')); }
+    } return output;
+  } return <Item>[];
+}
+
 void newDiary(DateTime dt, String listName, String itemName, double itemWeight) {
   final box = Hive.box<Diary>('diary');
   String dtKey = DateFormat(dateFormatSec).format(dt);
@@ -389,6 +386,44 @@ class MyApp extends StatelessWidget {
   }
 }
 
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  int currentIndex = 0;
+  final List<Widget> pages = [ // final -> Add/remove elements (O), reassign (X)
+    RoulettePage(),
+    DiaryPage(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    if(currentIndex >= pages.length) {
+      throw UnimplementedError('no widget for $currentIndex');
+    }
+
+    return Scaffold(
+      body: pages[currentIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: currentIndex,
+        onTap: (int index) {
+          setState(() { currentIndex = index; });
+        },
+        items: [
+          BottomNavigationBarItem(icon: const Icon(Icons.speed), label: 'Roulette'),
+          BottomNavigationBarItem(icon: const Icon(Icons.article), label: 'Diary'),
+        ],
+      ),
+    );
+  }
+}
+
+// Roulette
+
 class MyRoulette extends StatelessWidget {
   const MyRoulette({
     super.key,
@@ -424,42 +459,6 @@ class MyRoulette extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
-
-  @override
-  State<HomePage> createState() => _HomePageState();
-}
-
-class _HomePageState extends State<HomePage> {
-  int currentIndex = 0;
-  final List<Widget> pages = [ // final -> Add/remove elements (O), reassign (X)
-    RoulettePage(),
-    DiaryPage(),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    if(currentIndex >= pages.length) {
-      throw UnimplementedError('no widget for $currentIndex');
-    }
-
-    return Scaffold(
-      body: pages[currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: currentIndex,
-        onTap: (int index) {
-          setState(() { currentIndex = index; });
-        },
-        items: [
-          BottomNavigationBarItem(icon: const Icon(Icons.speed), label: 'Roulette'),
-          BottomNavigationBarItem(icon: const Icon(Icons.article), label: 'Diary'),
-        ],
-      ),
     );
   }
 }
@@ -614,7 +613,7 @@ class RoulettePageState extends State<RoulettePage>{
   }
 }
 
-// Edit
+// List edit
 class EditListPage extends StatefulWidget {
   @override
   _EditListPageState createState() => _EditListPageState();
@@ -779,6 +778,8 @@ class _AddOrEditNameState extends State<AddOrEditName> {
   }
 }
 
+// Item edit
+
 class EditItemPage extends StatefulWidget {
   String listName;
   EditItemPage({super.key, required this.listName});
@@ -933,6 +934,8 @@ class _ItemEditBoxState extends State<ItemEditBox>{
     );
   }
 }
+
+// Diary
 
 class DiaryPage extends StatefulWidget {
   DiaryPage({super.key});
