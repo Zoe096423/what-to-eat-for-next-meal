@@ -1,10 +1,10 @@
 // ignore_for_file: use_build_context_synchronously, library_private_types_in_public_api, must_be_immutable
 // Roulette source: https://pub.dev/packages/roulette
 
-// In progress: Page EditItemState works hella wonky. Fix it.
+// In progress: Page EditItemPageState works hella wonky. Fix it.
 // In progress: Make item weights change, and make the roulette reflect weight changes.
 // In progress: Add the function of manually changing the percentage in editItem.
-// In progress: Change the app icon and name.
+// In progress: Optimize. The app burns my phone.
 
 import 'dart:math';
 import 'package:flutter/foundation.dart' show ValueListenable;
@@ -645,7 +645,8 @@ class _EditListPageState extends State<EditListPage> {
             padding: const EdgeInsets.all(12.0),
             itemCount: box.length,
             onReorder: (oldIndex, newIndex) {
-              if (newIndex > box.length) newIndex -= 1;
+              if (oldIndex < newIndex) newIndex -= 1;
+              if (newIndex >= box.length) newIndex -= 1;
               final key = localListOrder.removeAt(oldIndex);
               localListOrder.insert(newIndex, key);
             },
@@ -708,7 +709,10 @@ class ListEditBox extends StatelessWidget {
                 icon: const Icon(Icons.edit),
               ),
               IconButton( // Delete
-                onPressed: () { removeList(curList); }, icon: const Icon(Icons.delete),
+                onPressed: () async {
+                  final result = await Navigator.of(context).push(DeleteConfirm());
+                  if(result!=null && result){ removeList(curList); }
+                }, icon: const Icon(Icons.delete),
               ),
             ]
           ),
@@ -840,12 +844,13 @@ class _EditItemPageState extends State<EditItemPage> {
             padding: const EdgeInsets.all(12.0),
             itemCount: itemList.length,
             onReorder: (oldIndex, newIndex) {
-              if (newIndex > itemList.length) newIndex -= 1;
+              if (oldIndex < newIndex) newIndex -= 1;
+              if (newIndex >= itemList.length) newIndex -= 1;
               final key = listBox.get(widget.listName).removeAt(oldIndex);
               listBox.get(widget.listName).insert(newIndex, key);
             },
             itemBuilder: (context, index) {
-              return ItemEditBox(key: ValueKey(itemList[index]), curList: widget.listName, curItem: itemList[index], index: index);
+              return ItemEditBox(key: ValueKey(itemList[index].name), curList: widget.listName, curItem: itemList[index], index: index);
             },
           );
         },
@@ -915,12 +920,86 @@ class ItemEditBox extends StatelessWidget {
             icon: const Icon(Icons.edit),
           ), // Bug: does nothing
           IconButton( // Delete
-            onPressed: () { removeItem(curList, curItem); }, icon: const Icon(Icons.delete), // Bug: does nothing
+            onPressed: () async {
+              final result = await Navigator.of(context).push(DeleteConfirm());
+              if(result!=null && result){ removeItem(curList, curItem); /* Bug: does nothing */ }
+            }, icon: const Icon(Icons.delete),
           ),
         ]
       ),
     );
   }
+}
+
+class DeleteConfirm extends PopupRoute {
+  @override
+  Color? get barrierColor => Colors.black.withAlpha(0x50);
+
+  @override
+  bool get barrierDismissible => true;
+
+  @override
+  String? get barrierLabel => "刪除";
+
+  @override
+  Widget buildPage(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+  ) {
+    return Center(
+      // Provide DefaultTextStyle to ensure that the dialog's text style
+      // matches the rest of the text in the app.
+      child: DefaultTextStyle(
+        style: Theme.of(context).textTheme.bodyMedium!,
+        // UnconstrainedBox is used to make the dialog size itself
+        // to fit to the size of the content.
+        child: UnconstrainedBox(
+          child: Container(
+            padding: const .all(30.0),
+            decoration: BoxDecoration(
+              borderRadius: .circular(10),
+              color: Colors.white,
+            ),
+            child: Column(
+              children: <Widget>[
+                Text(
+                  "確定要刪除嗎?",
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    OutlinedButton( onPressed: () {
+                      Navigator.of(context).pop(false);
+                      }, child: Text("否")),
+                      SizedBox(width: 20),
+                    TextButton(
+                      style:
+                        ButtonStyle(
+                          backgroundColor: WidgetStatePropertyAll<Color>(Colors.red),
+                        ),
+                      onPressed: () {
+                      Navigator.of(context).pop(true);
+                      }, child: Text(
+                      "是", style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ]
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Duration get transitionDuration => const Duration(milliseconds: 300);
 }
 
 // Diary
@@ -1049,7 +1128,10 @@ class _DiaryBoxState extends State<DiaryBox>{
               icon: const Icon(Icons.edit),
             ),
             IconButton( // Delete
-              onPressed: () { removeDiary(widget.curDiary.dateTime); setState(() {}); }, icon: const Icon(Icons.delete),
+              onPressed: () async {
+                final result = await Navigator.of(context).push(DeleteConfirm());
+                if(result!=null && result){ removeDiary(widget.curDiary.dateTime); setState(() {}); }
+              }, icon: const Icon(Icons.delete), // Bug: does nothing
             ),
           ]
         ),
