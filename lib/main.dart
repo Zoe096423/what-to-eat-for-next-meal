@@ -1,10 +1,10 @@
 // ignore_for_file: use_build_context_synchronously, library_private_types_in_public_api, must_be_immutable
 // Roulette source: https://pub.dev/packages/roulette
 
-// In progress: Page EditItemPageState works hella wonky. Fix it.
+// In progress: AddOrEditDiary does not change dateTime properly.
 // In progress: Make item weights change, and make the roulette reflect weight changes.
 // In progress: Add the function of manually changing the percentage in editItem.
-// In progress: Optimize. The app burns my phone.
+// In progress: Optimize? The app kinda burns my phone.
 
 import 'dart:math';
 import 'package:flutter/foundation.dart' show ValueListenable;
@@ -12,7 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:roulette/roulette.dart';
 import 'package:hive_flutter/hive_flutter.dart'; // For local data
 import 'package:intl/intl.dart'; // For dateTime format
-import 'package:const_date_time/const_date_time.dart'; //For const dateTime
+import 'package:const_date_time/const_date_time.dart'; // For const dateTime
 
 enum RGB {R,G,B}
 String dateFormat = 'yyyy-MM-dd HH:mm';
@@ -179,7 +179,7 @@ void main() async {
     migration(rawBox, key);
   }
   // after migration the box remains open for normal (untyped) usage
-  //Hive.box<List<Item>>('localLists').clear(); //debug
+  //Hive.box<List<Item>>('localLists').clear();
 
   await Hive.openBox<Diary>('diary');
   await initializeDefaultLists();
@@ -304,8 +304,8 @@ bool editItemName(Item item, String listName, String newName) {
     return false;
   } else if (nameList.contains(item.name)) {
     final index = nameList.indexOf(item.name);
-    list.remove(item);
-    list.insert(index,Item(name:newName, weight:item.weight, tags:item.tags));
+    list.removeAt(index);
+    list.insert(index, Item(name:newName, weight:item.weight, tags:item.tags));
     listBox.delete(listName);
     listBox.put(listName, list);
   } return true;
@@ -324,11 +324,16 @@ bool editItemWeight(Item item, String listName, double newWeight) {
   } return true;
 }
 
-void removeItem(String listName, Item item) {
+bool removeItem(String listName, Item item) {
   final listBox = Hive.box('localLists');
   final list = readItemList(listName);
-  list.remove(item);
-  listBox.put(listName, list);
+  final nameList = list.map((item) => item.name).toList();
+  if (nameList.contains(item.name)){
+    final index = nameList.indexOf(item.name);
+    list.removeAt(index);
+    listBox.put(listName, list);
+    return true;
+  } return false;
 }
 
 // Functions for diary entries
@@ -510,7 +515,7 @@ class RoulettePageState extends State<RoulettePage>{
             late final group = RouletteGroup(units);
 
             return Scaffold(
-              appBar: AppBar( title: Text('等下吃什麼?'), ),
+              appBar: AppBar( title: const Text('等下吃什麼?'), ),
               body: Column(
                 children: [
                   Container(
@@ -552,10 +557,10 @@ class RoulettePageState extends State<RoulettePage>{
                               ),
                               Padding(
                                 padding: const EdgeInsets.only(top: 10),
-                                child: Icon(
+                                child: const Icon(
                                   Icons.arrow_drop_down,
                                   size: 50,
-                                  color: const Color.fromARGB(255, 255, 139, 101),
+                                  color: Color.fromARGB(255, 255, 139, 101),
                                 ),
                               ),
                             ],
@@ -620,7 +625,7 @@ class _EditListPageState extends State<EditListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('編輯清單'),
+        title: const Text('編輯清單'),
         actions: [
           IconButton( // Add new list
             onPressed: () async {
@@ -825,7 +830,7 @@ class _EditItemPageState extends State<EditItemPage> {
                     context: context,
                     builder: (context) {
                       return AlertDialog(
-                        content: Text('已經有同名的清單了!'),
+                        content: const Text('已經有同名的清單了!'),
                       );
                     },
                   );
@@ -904,13 +909,12 @@ class ItemEditBox extends StatelessWidget {
                 if(success){
                   Item newItem = Item( name:newName, weight:curItem.weight, tags:curItem.tags );
                   curItem = newItem;
-                }
-                else{
+                } else{
                   showDialog(
                     context: context,
                     builder: (context) {
                       return AlertDialog(
-                        content: Text('已經有同名的項目了!'),
+                        content: const Text('已經有同名的項目了!'),
                       );
                     },
                   );
@@ -918,11 +922,11 @@ class ItemEditBox extends StatelessWidget {
               }
             },
             icon: const Icon(Icons.edit),
-          ), // Bug: does nothing
+          ),
           IconButton( // Delete
             onPressed: () async {
               final result = await Navigator.of(context).push(DeleteConfirm());
-              if(result!=null && result){ removeItem(curList, curItem); /* Bug: does nothing */ }
+              if(result!=null && result){ removeItem(curList, curItem); }
             }, icon: const Icon(Icons.delete),
           ),
         ]
@@ -972,8 +976,8 @@ class DeleteConfirm extends PopupRoute {
                   children: [
                     OutlinedButton( onPressed: () {
                       Navigator.of(context).pop(false);
-                      }, child: Text("否")),
-                      SizedBox(width: 20),
+                      }, child: const Text("否")),
+                      const SizedBox(width: 20),
                     TextButton(
                       style:
                         ButtonStyle(
@@ -1131,7 +1135,7 @@ class _DiaryBoxState extends State<DiaryBox>{
               onPressed: () async {
                 final result = await Navigator.of(context).push(DeleteConfirm());
                 if(result!=null && result){ removeDiary(widget.curDiary.dateTime); setState(() {}); }
-              }, icon: const Icon(Icons.delete), // Bug: does nothing
+              }, icon: const Icon(Icons.delete),
             ),
           ]
         ),
@@ -1177,6 +1181,7 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
     // If editing
     if (widget.prevValue.dateTime != defaultDt) {
       widget.edit = true;
+      dateTime = ValueNotifier<DateTime>(widget.prevValue.dateTime);
       if(widget.prevValue.listName=='新食物') {
         newFood = true;
         itemController.text = widget.prevValue.itemName;
@@ -1211,7 +1216,7 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
             children: [
               Row( // Date & time
                 children: [
-                  Text('日期&時間:'),
+                  const Text('日期&時間:'),
                   const SizedBox(width: 10),
                   ValueListenableBuilder<DateTime>(
                     valueListenable: dateTime,
@@ -1245,23 +1250,23 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
               ),
               Row( // Choose method of recording
                 children: [
-                  Text('要記錄什麼? '),
+                  const Text('要記錄什麼? '),
                   IconButton( // Selection
                     onPressed: () { setState((){ newFood = false; }); },
                     icon: (newFood==false) ? const Icon(Icons.check_box) : const Icon(Icons.check_box_outline_blank),
                   ),
-                  Text('轉盤內的食物'),
+                  const Text('轉盤內的食物'),
                   IconButton( // Selection
                     onPressed: () { setState((){ newFood = true; }); },
                     icon: (newFood==true) ? const Icon(Icons.check_box) : const Icon(Icons.check_box_outline_blank),
                   ),
-                  Text('新食物'),
+                  const Text('新食物'),
                 ],
               ),
               if(!newFood)
                 Row( // Record food
                   children: [
-                    Text("吃了"),
+                    const Text("吃了"),
                     const SizedBox(width: 10),
                     SizedBox(
                       width: 125,
@@ -1310,7 +1315,7 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                   children: [
                     Row( // Record new food
                       children: [
-                        Text("吃了"),
+                        const Text("吃了"),
                         const SizedBox(width: 10),
                         SizedBox(
                           height: 70,
@@ -1329,17 +1334,17 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                     ),
                     Row( // Add new food to roulette or not
                       children: [
-                        Text('是否將新的食物登錄到轉盤?'),
+                        const Text('是否將新的食物登錄到轉盤?'),
                         IconButton( // Selection
                           onPressed: () { setState((){ addToRoulette = true; }); },
                           icon: (addToRoulette==true) ? const Icon(Icons.check_box) : const Icon(Icons.check_box_outline_blank),
                         ),
-                        Text('是'),
+                        const Text('是'),
                         IconButton( // Selection
                           onPressed: () { setState((){ addToRoulette = false; }); },
                           icon: (addToRoulette==false) ? const Icon(Icons.check_box) : const Icon(Icons.check_box_outline_blank),
                         ),
-                        Text('否'),
+                        const Text('否'),
                       ],
                     ),
                     if(addToRoulette)
@@ -1363,17 +1368,17 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                                   );
                                 }).toList(),
                               ),
-                              Text('，權重: '),
+                              const Text('，權重: '),
                               IconButton( // Selection
                                 onPressed: () { setState((){ changeWeight = false; }); },
                                 icon: (changeWeight==false) ? const Icon(Icons.check_box) : const Icon(Icons.check_box_outline_blank),
                               ),
-                              Text('預設'),
+                              const Text('預設'),
                               IconButton( // Selection
                                 onPressed: () { setState((){ changeWeight = true; }); },
                                 icon: (changeWeight==true) ? const Icon(Icons.check_box) : const Icon(Icons.check_box_outline_blank),
                               ),
-                              Text('自訂'),
+                              const Text('自訂'),
                             ],
                           ),
                           if(changeWeight)
