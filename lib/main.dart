@@ -1,7 +1,6 @@
 // ignore_for_file: use_build_context_synchronously, library_private_types_in_public_api, must_be_immutable
 // Roulette source: https://pub.dev/packages/roulette
 
-// In progress: AddOrEditDiary does not change dateTime properly.
 // In progress: Make item weights change, and make the roulette reflect weight changes.
 // In progress: Add the function of manually changing the percentage in editItem.
 // In progress: Optimize? The app kinda burns my phone.
@@ -1410,7 +1409,7 @@ class _AddOrEditDiaryState extends State<AddOrEditDiary> {
                   if(addToList.isNotEmpty){ newItem(addToList, itemName); }
                   // Validate returns true if the form is valid, or false otherwise.
                   Navigator.pop(context, DiaryEntry(
-                    dateTime: widget.edit ? widget.prevValue.dateTime : dateTime.value,
+                    dateTime: dateTime.value,
                     listName: listName,
                     itemName: itemController.text=='' ? itemName : itemController.text,
                     itemWeight: itemWeight));
