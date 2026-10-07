@@ -40,6 +40,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   roulette: ^0.3.2
   const_date_time: ^1.2.1
+  chinese_number: ^1.0.2
 
 dev_dependencies:
   flutter_test:

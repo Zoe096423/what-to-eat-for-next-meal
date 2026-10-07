@@ -1,9 +1,20 @@
 // ignore_for_file: use_build_context_synchronously, library_private_types_in_public_api, must_be_immutable
 // Roulette source: https://pub.dev/packages/roulette
 
-// In progress: Make item weights change, and make the roulette reflect weight changes.
-// In progress: Add the function of manually changing the percentage in editItem.
-// In progress: Optimize? The app kinda burns my phone.
+// Bugs to be fixed:
+//    Somehow the "早餐" list disappeared when I opened the app. Something wrong with the boxes?
+//    Is it normal that when I reinstall the apk, the lists reset? The files has to be stored in cache, right?
+//    When adding new food to list via diary, the food name becomes default name (Meal 1)
+//    Colors for the roulette looks a little weird?
+//    When adding new food to list via diary, some food are simultaneously added to multiple lists.
+//    Optimize? The app kinda burns my phone.
+
+// Features to be added:
+// -> Arrange the diary properly.
+//    When finished polling, buttons "好哇" "再抽一次" "算了" pop up. Choosing "好哇" auto adds the food to diary. Choosing "再抽一次" auto filters out the last result (until the app is restarted) and polls again. Choosing "算了" stops the poll.
+//    Add the function to filter via tags.
+//    Move the button for adding diary to the bottom right as a floating button which position can be changed via long pressing & dragging.
+//    Add the function of manually changing the percentage in editItem.
 
 import 'dart:math';
 import 'package:flutter/foundation.dart' show ValueListenable;
@@ -12,11 +23,13 @@ import 'package:roulette/roulette.dart';
 import 'package:hive_flutter/hive_flutter.dart'; // For local data
 import 'package:intl/intl.dart'; // For dateTime format
 import 'package:const_date_time/const_date_time.dart'; // For const dateTime
+import 'package:chinese_number/chinese_number.dart';
 
-enum RGB {R,G,B}
+enum RGB {R, G, B}
 String dateFormat = 'yyyy-MM-dd HH:mm';
 String dateFormatSec = 'yyyy-MM-dd HH:mm:ss';
 const defaultDt = ConstDateTime.utc(2022, 10, 27);
+DateTime localSelectedDate = DateTime.now();
 
 class MultiValueListenableBuilder extends AnimatedWidget {
   final List<ValueListenable> listenables;
@@ -1007,6 +1020,124 @@ class DeleteConfirm extends PopupRoute {
 
 // Diary
 
+class ScrollWeekDay extends StatefulWidget {
+  ScrollWeekDay({super.key});
+
+  @override
+  _ScrollWeekDayState createState() => _ScrollWeekDayState();
+}
+
+class _ScrollWeekDayState extends State<ScrollWeekDay> {
+  late DateTime _selectedDate;
+  late final List<DateTime> _dates;
+  final _weekdays = ["一", "二", "三", "四", "五", "六", "日"];
+
+  @override
+  void initState() {
+    super.initState();
+    final today = DateTime.now();
+    _selectedDate = DateTime(today.year, today.month, today.day);
+    _dates = List.generate(
+      7,
+      (index) => DateTime(today.year, today.month, today.day + index),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context){
+    return Column(
+      children: [
+        SizedBox(
+          height: 28,
+          width: MediaQuery.sizeOf(context).width/1.37,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(left:8, right:8, top:8),
+            itemCount: 7,
+            separatorBuilder: (_, _) => SizedBox(width: (MediaQuery.sizeOf(context).width-96)/9.8),
+            itemBuilder:(context, index) {
+              final date = _dates[index];
+              return Text( // Day of week
+                _weekdays[date.weekday - 1],
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              );
+            },
+          ),
+        ),
+        Row(
+          children: [
+            IconButton(
+              onPressed: (){},
+              icon: const Icon(Icons.chevron_left),
+            ),
+            SizedBox(
+              height: 48,
+              width: MediaQuery.sizeOf(context).width-96,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.only(top: 2),
+                itemCount: 7,
+                separatorBuilder: (_, _) => const SizedBox(width: 10),
+                itemBuilder: (context, index) {
+                  final date = _dates[index];
+                  final isSelected = DateUtils.isSameDay(date, _selectedDate);
+                  return Material(
+                    color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(16),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () {
+                        setState(() {
+                          _selectedDate = date;
+                        });
+                      },
+                      child: Container(
+                        width: (MediaQuery.sizeOf(context).width-96)/7-8.6,
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isSelected
+                                ? Theme.of(context).colorScheme.primary
+                                : Colors.grey.shade300,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text( // Day
+                              '${date.day}',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: isSelected ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            IconButton(
+              onPressed: (){},
+              icon: const Icon(Icons.chevron_right),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 class DiaryPage extends StatefulWidget {
   DiaryPage({super.key});
 
@@ -1039,18 +1170,33 @@ class _DiaryPageState extends State<DiaryPage>{
           ),
         ],
       ),
-      body: ValueListenableBuilder(
-        valueListenable: diaryBox.listenable(),
-        builder: (context, Box<Diary> box, child) {
-          var diaryList = box.values.toList();
-          return ListView.builder( // List
-            padding: const EdgeInsets.all(12.0),
-            itemCount: diaryList.length,
-            itemBuilder: (context, index) {
-              return DiaryBox(key: ValueKey(diaryList[index]), curDiary: diaryList[index], index: index);
-            },
-          );
-        },
+      body: Column(
+        children: [
+          Align(
+            alignment: AlignmentGeometry.xy(-0.85, 0),
+            child: Text(
+              "${localSelectedDate.month.toSimplifiedChineseNumber()}月", // Chinese & Mandarin
+              //"${DateFormat("MMM").format(widget.localSelectedDate)}.", // English
+              style: DefaultTextStyle.of(context).style.apply(fontSizeFactor: 1.4),
+            ),
+          ),
+          ScrollWeekDay(),
+          Expanded(
+            child: ValueListenableBuilder(
+              valueListenable: diaryBox.listenable(),
+              builder: (context, Box<Diary> box, child) {
+                var diaryList = box.values.toList();
+                return ListView.builder( // List
+                  padding: const EdgeInsets.all(12.0),
+                  itemCount: diaryList.length,
+                  itemBuilder: (context, index) {
+                    return DiaryBox(key: ValueKey(diaryList[index]), curDiary: diaryList[index], index: index);
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

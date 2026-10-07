@@ -49,6 +49,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.4"
+  chinese_number:
+    dependency: "direct main"
+    description:
+      name: chinese_number
+      sha256: "710ba28f43c6a30e1dc8a7985cb3306054de6b0b7b23d3665d697ed480096b10"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.2"
   cli_util:
     dependency: transitive
     description:
