@@ -2,7 +2,7 @@
 // Roulette source: https://pub.dev/packages/roulette
 
 // Bugs to be fixed:
-//    Somehow the "早餐" list disappeared when I opened the app. Something wrong with the boxes?
+//    Somehow the "早餐" list disappeared when I opened the app. Due to localListOrder initializing? How to make list order permenantly stored? Open a new box?
 //    Is it normal that when I reinstall the apk, the lists reset? The files has to be stored in cache, right?
 //    When adding new food to list via diary, the food name becomes default name (Meal 1)
 //    Colors for the roulette looks a little weird?
@@ -308,19 +308,21 @@ void newItem(String listName, String itemName) {
   listBox.put(listName, list);
 }
 
-bool editItemName(Item item, String listName, String newName) {
+int editItemName(Item item, String listName, String newName) {
   final listBox = Hive.box('localLists');
   final list = readItemList(listName);
   final nameList = list.map((item) => item.name).toList();
-  if (nameList.contains(newName)) { // the name already exist
-    return false;
+  if (newName.isEmpty){ // the name already exist
+    return -1;
+  } else if (nameList.contains(newName)) { // the name already exist
+    return -2;
   } else if (nameList.contains(item.name)) {
     final index = nameList.indexOf(item.name);
     list.removeAt(index);
     list.insert(index, Item(name:newName, weight:item.weight, tags:item.tags));
     listBox.delete(listName);
     listBox.put(listName, list);
-  } return true;
+  } return 1;
 }
 
 bool editItemWeight(Item item, String listName, double newWeight) {
@@ -349,6 +351,14 @@ bool removeItem(String listName, Item item) {
 }
 
 // Functions for diary entries
+bool onSameDay(DateTime a, DateTime b) {
+  if(a.year==b.year && a.month==b.month && a.day==b.day){
+    return true;
+  } else {
+    return false;
+  }
+}
+
 List<Item> readItemList(String listName) {
   final box = Hive.box('localLists');
   final raw = box.get(listName);
@@ -771,7 +781,9 @@ class _AddOrEditNameState extends State<AddOrEditName> {
               TextFormField(
                 controller: nameController,
                 // The validator receives the text that the user has entered.
-                validator: (value) { return null; },
+                validator: (value) {
+                  value = (widget.prevName=='') ? '' : widget.prevName;
+                  return null; },
                 decoration: InputDecoration(
                   border: const UnderlineInputBorder(),
                   labelText: (widget.prevName=='') ? '' : widget.prevName,
@@ -917,19 +929,30 @@ class ItemEditBox extends StatelessWidget {
                 ),
               );
               if (newName != null) {
-                final success = editItemName(curItem, curList, newName);
-                if(success){
-                  Item newItem = Item( name:newName, weight:curItem.weight, tags:curItem.tags );
-                  curItem = newItem;
-                } else{
-                  showDialog(
-                    context: context,
-                    builder: (context) {
-                      return AlertDialog(
-                        content: const Text('已經有同名的項目了!'),
-                      );
-                    },
-                  );
+                final result = editItemName(curItem, curList, newName);
+                switch(result){
+                  case(1): { // succeed
+                    Item newItem = Item( name:newName, weight:curItem.weight, tags:curItem.tags );
+                    curItem = newItem;
+                  } case(-1): { // failed, name cannot be empty
+                    showDialog(
+                      context: context,
+                      builder: (context) {
+                        return AlertDialog(
+                          content: const Text('名稱不可為空！'),
+                        );
+                      },
+                    );
+                  } case(-2): { // failed, such name already exists
+                    showDialog(
+                      context: context,
+                      builder: (context) {
+                        return AlertDialog(
+                          content: const Text('已經有同名的項目了！'),
+                        );
+                      },
+                    );
+                  }
                 }
               }
             },
@@ -1020,6 +1043,9 @@ class DeleteConfirm extends PopupRoute {
 
 // Diary
 
+final today = DateTime.now();
+DateTime selectedDate = selectedDate = DateTime(today.year, today.month, today.day);
+
 class ScrollWeekDay extends StatefulWidget {
   ScrollWeekDay({super.key});
 
@@ -1028,15 +1054,12 @@ class ScrollWeekDay extends StatefulWidget {
 }
 
 class _ScrollWeekDayState extends State<ScrollWeekDay> {
-  late DateTime _selectedDate;
   late final List<DateTime> _dates;
   final _weekdays = ["一", "二", "三", "四", "五", "六", "日"];
 
   @override
   void initState() {
     super.initState();
-    final today = DateTime.now();
-    _selectedDate = DateTime(today.year, today.month, today.day);
     _dates = List.generate(
       7,
       (index) => DateTime(today.year, today.month, today.day + index),
@@ -1049,13 +1072,13 @@ class _ScrollWeekDayState extends State<ScrollWeekDay> {
       children: [
         SizedBox(
           height: 28,
-          width: MediaQuery.sizeOf(context).width/1.37,
+          width: MediaQuery.widthOf(context)/1.37,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const NeverScrollableScrollPhysics(),
             padding: const EdgeInsets.only(left:8, right:8, top:8),
             itemCount: 7,
-            separatorBuilder: (_, _) => SizedBox(width: (MediaQuery.sizeOf(context).width-96)/9.8),
+            separatorBuilder: (_, _) => SizedBox(width: (MediaQuery.widthOf(context)-96)/9.8),
             itemBuilder:(context, index) {
               final date = _dates[index];
               return Text( // Day of week
@@ -1076,7 +1099,7 @@ class _ScrollWeekDayState extends State<ScrollWeekDay> {
             ),
             SizedBox(
               height: 48,
-              width: MediaQuery.sizeOf(context).width-96,
+              width: MediaQuery.widthOf(context)-96,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 physics: const NeverScrollableScrollPhysics(),
@@ -1085,7 +1108,7 @@ class _ScrollWeekDayState extends State<ScrollWeekDay> {
                 separatorBuilder: (_, _) => const SizedBox(width: 10),
                 itemBuilder: (context, index) {
                   final date = _dates[index];
-                  final isSelected = DateUtils.isSameDay(date, _selectedDate);
+                  final isSelected = DateUtils.isSameDay(date, selectedDate);
                   return Material(
                     color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(16),
@@ -1093,11 +1116,11 @@ class _ScrollWeekDayState extends State<ScrollWeekDay> {
                       borderRadius: BorderRadius.circular(16),
                       onTap: () {
                         setState(() {
-                          _selectedDate = date;
+                          selectedDate = date;
                         });
                       },
                       child: Container(
-                        width: (MediaQuery.sizeOf(context).width-96)/7-8.6,
+                        width: (MediaQuery.widthOf(context)-96)/7-8.6,
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
@@ -1147,6 +1170,19 @@ class DiaryPage extends StatefulWidget {
 
 class _DiaryPageState extends State<DiaryPage>{
   final diaryBox = Hive.box<Diary>('diary');
+  late List<Diary> diaryListAll, diaryListToday, diaryList;
+
+  @override
+  void initState(){
+    super.initState();
+    diaryListAll = [ for(var entry in diaryBox.values.toList()) entry ];
+    diaryListToday = [ for(var entry in diaryBox.values.toList()) if(onSameDay(entry.dateTime,selectedDate)) entry ];
+    diaryList = diaryListToday;
+  }
+
+  List<Diary> refreshDiaryListToday(){
+    return [ for(var entry in diaryBox.values.toList()) if(onSameDay(entry.dateTime,selectedDate)) entry ];
+  }
 
   @override
   Widget build(BuildContext context){
@@ -1154,6 +1190,25 @@ class _DiaryPageState extends State<DiaryPage>{
       appBar: AppBar(
         title: const Text('用餐日記'),
         actions: [
+          SizedBox(
+            width: 162,
+            child: CheckboxListTile(
+              contentPadding: EdgeInsets.all(1),
+              title: const Text(
+                '查看全部',
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  fontSize: 14,
+                ),
+              ),
+              value: diaryList==diaryListAll,
+              onChanged:(bool? value) {
+                setState(() {
+                  diaryList = value! ? diaryListAll : diaryListToday;
+                });
+              },
+            ),
+          ),
           IconButton( // Add new item
             onPressed: () async {
               final newValue = await Navigator.push(
@@ -1185,14 +1240,42 @@ class _DiaryPageState extends State<DiaryPage>{
             child: ValueListenableBuilder(
               valueListenable: diaryBox.listenable(),
               builder: (context, Box<Diary> box, child) {
-                var diaryList = box.values.toList();
-                return ListView.builder( // List
-                  padding: const EdgeInsets.all(12.0),
-                  itemCount: diaryList.length,
-                  itemBuilder: (context, index) {
-                    return DiaryBox(key: ValueKey(diaryList[index]), curDiary: diaryList[index], index: index);
-                  },
-                );
+                if(diaryList.isEmpty){
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(),
+                      Text(
+                        "日記空空的，這天吃了什麼呢",
+                        style: TextStyle(color: Colors.grey, fontSize: 16),
+                      ),
+                    ],
+                  );
+                } else{
+                  if(diaryList==diaryListAll){ // latest date first
+                    return ListView.builder( // List
+                      padding: const EdgeInsets.all(12.0),
+                      itemCount: diaryList.length,
+                      itemBuilder: (context, index) {
+                        // In progress: Align by date first (latest first), then time(oldest first)?
+                        return DiaryBox(key: ValueKey(diaryList[diaryList.length-index-1]), curDiary: diaryList[diaryList.length-index-1], index: diaryList.length-index-1);
+                      },
+                    );
+                  } else { // morning -> noon -> evening
+                    return ValueListenableBuilder( // In progres: Does not work properly
+                      valueListenable: ValueNotifier<DateTime>(selectedDate),
+                      builder: (context, value, child){
+                        return ListView.builder( // List
+                          padding: const EdgeInsets.all(12.0),
+                          itemCount: diaryList.length,
+                          itemBuilder: (context, index) {
+                            return DiaryBox(key: ValueKey(diaryList[index]), curDiary: diaryList[index], index: index);
+                          },
+                        );
+                      },
+                    );
+                  }
+                }
               },
             ),
           ),
