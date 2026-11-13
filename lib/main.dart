@@ -33,16 +33,11 @@ void main() async {
   if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(TagAdapter());
   if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(ItemAdapter());
   if (!Hive.isAdapterRegistered(2)) Hive.registerAdapter(DiaryAdapter());
+  if (!Hive.isAdapterRegistered(3)) Hive.registerAdapter(ItemMenuAdapter());
   await Hive.openBox('settings');
   
-  // migration: open untyped so we can inspect raw contents without Hive doing its own casts
   await Hive.openBox('localLists');
-  final rawBox = Hive.box('localLists');
-  for (var key in rawBox.keys) {
-    migration(rawBox, key);
-  }
-  // after migration the box remains open for normal (untyped) usage
-  //Hive.box<List<Item>>('localLists').clear();
+  Hive.box('localLists').clear();
 
   await Hive.openBox<Diary>('diary');
   await initializeDefaultLists();

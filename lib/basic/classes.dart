@@ -90,6 +90,33 @@ class ItemMenu { // name is used as key in box
   ItemMenu({ required this.order, required this.items });
 }
 
+class ItemMenuAdapter extends TypeAdapter<ItemMenu> {
+  @override
+  final int typeId = 3;
+
+  @override
+  ItemMenu read(BinaryReader reader) {
+    final order = reader.readInt();
+    // null guard start
+    final rawItems = reader.read();
+    List<Item> items;
+    if (rawItems is List<Item>) { items = rawItems; }
+    else if (rawItems == null) { items = const []; }
+    else { items = (rawItems as List).map((e) => e is Item ? e : Item(name: e?.toString() ?? '')).toList(); }
+    // null guard end
+    return ItemMenu(
+      order: order,
+      items: items,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, ItemMenu obj) {
+    writer.writeInt(obj.order);
+    writer.write(obj.items);
+  }
+}
+
 class Diary {
   final DateTime dateTime;
   final String listName;

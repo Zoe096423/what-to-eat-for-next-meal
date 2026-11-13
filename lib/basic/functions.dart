@@ -54,7 +54,7 @@ void updateWeights(){
   final listBox = Hive.box('localLists');
   final diaryBox = Hive.box<Diary>('diary');
   for(var listName in listBox.keys){ // Reset all weights before changes
-    final list = listBox.get(listName);
+    final list = listBox.get(listName).items;
     for(var item in list){
       editItemWeight(item,listName,1);
     }
@@ -205,14 +205,14 @@ void removeDiary(DateTime dt) {
 
 // Misc
 void migration(Box box, String listName) {
+  var newItemList = ItemMenu(order:-1, items:[]);
   final rawData = box.get(listName, defaultValue: []);
-  List<Item> items = [];
   for (var element in rawData) {
     if (element is String) {
-      items.add(Item(name: element));
+      newItemList.items.add(Item(name: element));
     } else if (element is Item) {
-      items.add(element);
+      newItemList.items.add(element);
     }
   }
-  box.put(listName, items);
+  box.put(listName, newItemList);
 }

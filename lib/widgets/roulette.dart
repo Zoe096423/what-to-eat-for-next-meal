@@ -77,8 +77,15 @@ class RoulettePageState extends State<RoulettePage>{
               if(item.weight!=0){ roulettelist.add(item); }
             }
 
-            // Color control
+            // Color control (HSV)
             final List<Color> colors = <Color>[];
+            for(int i=0;i<roulettelist.length;i++){
+              double h = 360.0/roulettelist.length*i;
+              colors.add(HSVColor.fromAHSV(0.6, h, 0.2, 0.9).toColor());
+            }
+
+            // Old color control (RGB)
+            /*final List<Color> colors = <Color>[];
             final int value = roulettelist.length*100;
             final List<int> sat = [150,1,255];
             final List<int> cRange = [255,0,100];
@@ -86,7 +93,7 @@ class RoulettePageState extends State<RoulettePage>{
             for(int i=0;i<roulettelist.length;i++){
               int color(int x) => ((sin(cRange[x]/roulettelist.length*i)*value).round()+255-cRange[x])%sat[x];
               colors.add(Color.fromARGB(255, color(0), color(1), color(2)).withAlpha(70),);
-            }
+            }*/
 
             // Generating roulette
             final units = <RouletteUnit>[];
