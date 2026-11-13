@@ -1,16 +1,17 @@
 # what_to_eat_for_next_meal
 
-A Flutter project built for effeciently deciding the next meal.
+由於經常想不到下一餐吃什麼，因此做了這個 Flutter 專案。
+最主要的功能是轉盤，並透過記錄用餐日記以避免抽到近期吃過的餐點。
+程式由我本人撰寫，透過 AI 輔助除錯。
 
-## Getting Started
+## 功能介紹
 
-This project is a starting point for a Flutter application.
+# 轉盤
 
-A few resources to get you started if this is your first Flutter project:
+不知道吃什麼的時候就抽一個吧！
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+# 日記
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+如果轉盤一直抽到昨天才吃過的食物，就來試試寫用餐日記吧。
+可以直接記錄轉盤上現有的食物，也可以記錄新的食物。
+在記錄新食物時也可以選擇同時將其添加進轉盤，變成未來也可以吃的新選擇之一！
