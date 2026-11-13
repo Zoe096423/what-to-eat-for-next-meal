@@ -9,6 +9,7 @@ import '../basic/classes.dart';
 import '../basic/global_vars.dart';
 import '../basic/functions.dart';
 import 'list_edit.dart';
+import 'tag_filtering.dart';
 
 // Roulette
 class MyRoulette extends StatelessWidget {
@@ -110,14 +111,28 @@ class RoulettePageState extends State<RoulettePage>{
             late final group = RouletteGroup(units);
 
             return Scaffold(
-              appBar: AppBar( title: const Text('等下吃什麼?'), ),
+              appBar: AppBar(
+                title: const Text('等下吃什麼？'),
+                actions: [
+                  IconButton( // Edit Item
+                    onPressed: () { // Edit list button
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => EditListPage(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.edit),
+                  ),
+                ],
+              ),
               body: Column(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      // ignore: deprecated_member_use
-                      color: Colors.pink.withOpacity(0.1),
+                      color: Colors.pink.withValues(alpha: 0.1),
                     ),
                     child: Center(
                       child: Column(
@@ -126,15 +141,15 @@ class RoulettePageState extends State<RoulettePage>{
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           OutlinedButton(
-                            onPressed: () { // Edit list button
+                            onPressed: () { // Apply tags
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => EditListPage(),
+                                  builder: (context) => TagFilteringPage(),
                                 ),
                               );
                             },
-                            child: const Text('編輯清單'),
+                            child: const Text('以標籤篩選'),
                           ),
                           Stack( // Roulette
                             alignment: Alignment.topCenter,

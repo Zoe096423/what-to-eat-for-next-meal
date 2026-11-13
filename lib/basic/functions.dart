@@ -42,9 +42,6 @@ Future<void> initializeDefaultLists() async {
     await boxLocalLists.put( '早餐', ItemMenu(order: 0, items: [ Item(name:'Meal 1'), Item(name:'Meal 2'), Item(name:'Meal 3'), Item(name:'Meal 4'), Item(name:'Meal 5') ]) );
     await boxLocalLists.put( '午晚餐', ItemMenu(order: 1, items: [ Item(name:'Meal 1'), Item(name:'Meal 2'), Item(name:'Meal 3'), Item(name:'Meal 4'), Item(name:'Meal 5') ]) );
   }
-
-  for(int i=boxLocalLists.length-1;i>=0;i--){ localListOrder.add(boxLocalLists.keyAt(i)); }
-
   // Flagging
   if (await isFirstLaunch()) { await setInitialized(); }
 }
@@ -78,9 +75,7 @@ void updateWeights(){
 // Functions for list edit
 void newList(String name) {
   final listsBox = Hive.box('localLists');
-  if (!listsBox.containsKey(name)) { listsBox.put(name, <Item>[]); }
-  localListOrder.clear();
-  for(int i=0;i<listsBox.length;i++){ localListOrder.add(listsBox.keyAt(i)); }
+  if (!listsBox.containsKey(name)) { listsBox.put(name, ItemMenu(order: listsBox.length, items: <Item>[])); }
 }
 
 bool editListName(String oldName, String newName) {
@@ -92,19 +87,12 @@ bool editListName(String oldName, String newName) {
     listBox.delete(oldName);
     listBox.put(newName, list);
   }
-  for(int i=0;i<listBox.length;i++){
-    if(localListOrder[i]==oldName){
-      localListOrder[i] = newName;
-    }
-  }
   return true;
 }
 
 void removeList(String name) {
   final listBox = Hive.box('localLists');
   if (listBox.containsKey(name)) { listBox.delete(name); }
-  localListOrder.clear();
-  for(int i=0;i<listBox.length;i++){ localListOrder.add(listBox.keyAt(i)); }
 }
 
 void newItem(String listName, String itemName) {
@@ -170,16 +158,14 @@ bool onSameDay(DateTime a, DateTime b) {
 ItemMenu readItemMenu(String listName) {
   final box = Hive.box('localLists');
   final raw = box.get(listName);
-  if (raw.items is List) {
+  if (raw!=null && raw.items is List) {
     final List<Item> menuItems = [];
     for (var element in raw.items) {
       if (element is Item) { menuItems.add(element); }
       else if (element is String) { menuItems.add(Item(name: element)); }
       else { menuItems.add(Item(name: element?.toString() ?? '')); }
     } return ItemMenu(order:raw.order, items:menuItems);
-  }
-  
-  return ItemMenu(order:-1, items:[]);
+  } return ItemMenu(order:-1, items:[]);
 }
 
 void newDiary(DateTime dt, String listName, String itemName, double itemWeight) {

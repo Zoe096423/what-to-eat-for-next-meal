@@ -10,7 +10,6 @@ const defaultDt = ConstDateTime.utc(2022, 10, 27);
 DateTime localSelectedDate = DateTime.now();
 
 ValueNotifier<String> selectedList = ValueNotifier('午晚餐');
-final List<String> localListOrder = [];
 
 final today = DateTime.now();
 DateTime selectedDate = selectedDate = DateTime(today.year, today.month, today.day);

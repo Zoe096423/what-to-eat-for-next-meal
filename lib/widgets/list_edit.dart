@@ -16,6 +16,21 @@ class EditListPage extends StatefulWidget {
 
 class EditListPageState extends State<EditListPage> {
   final listBox = Hive.box('localLists');
+  List<String> localListOrder = [];
+
+  @override
+  void initState(){
+    super.initState();
+    int maxOrder = listBox.length;
+    for(int order=0; order<maxOrder; order++){
+      for(var element in listBox.keys){
+        if(listBox.get(element).order==order){
+          localListOrder.add(element);
+          break;
+        }
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

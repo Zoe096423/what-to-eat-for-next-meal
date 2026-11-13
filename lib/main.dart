@@ -1,13 +1,12 @@
-// ignore_for_file: use_build_context_synchronously, library_private_types_in_public_api, must_be_immutable
 // Roulette source: https://pub.dev/packages/roulette
 
 // Bugs to be fixed:
-//    Somehow the "早餐" list disappeared when I opened the app. Due to localListOrder initializing? How to make list order permenantly stored? Open a new box?
+//    Somehow the "早餐" list resetted when I opened the app. Due to localListOrder initializing? How to make list order permenantly stored? Open a new box?
 //    Is it normal that when I reinstall the apk, the lists reset? The files has to be stored in cache, right?
 //    When adding new food to list via diary, the food name becomes default name (Meal 1)
-//    Colors for the roulette looks a little weird?
 //    When adding new food to list via diary, some food are simultaneously added to multiple lists.
 //    Optimize? The app kinda burns my phone.
+//    When adding, editing, or deleting diary entries, it dooes not refresh immediately despite having setState(){}. 
 
 // Features to be added:
 // -> Arrange the diary properly.
@@ -35,10 +34,7 @@ void main() async {
   if (!Hive.isAdapterRegistered(2)) Hive.registerAdapter(DiaryAdapter());
   if (!Hive.isAdapterRegistered(3)) Hive.registerAdapter(ItemMenuAdapter());
   await Hive.openBox('settings');
-  
   await Hive.openBox('localLists');
-  Hive.box('localLists').clear();
-
   await Hive.openBox<Diary>('diary');
   await initializeDefaultLists();
   runApp(MyApp());
@@ -51,7 +47,6 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '等下吃什麼?',
       theme: ThemeData(colorSchemeSeed: const Color(0xff6750a4)),
       home: const HomePage(),
     );

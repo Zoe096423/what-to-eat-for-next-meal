@@ -327,7 +327,8 @@ class DiaryBoxState extends State<DiaryBox>{
             IconButton( // Delete
               onPressed: () async {
                 final result = await Navigator.of(context).push(DeleteConfirm());
-                if(result!=null && result){ removeDiary(widget.curDiary.dateTime); setState(() {}); }
+                if(result!=null && result){ removeDiary(widget.curDiary.dateTime); }
+                // Somehow, if I added setState here, the deleted entry's meal will be added into ItemMenu. Why????
               }, icon: const Icon(Icons.delete),
             ),
           ]
@@ -366,8 +367,8 @@ class AddOrEditDiaryState extends State<AddOrEditDiary> {
   void initState() {
     super.initState();
 
-    listName = localListOrder.isNotEmpty ? localListOrder[0] : '';
-    addToList = localListOrder.isNotEmpty ? localListOrder[0] : '';
+    listName = listsBox.isNotEmpty ? listsBox.getAt(0) : '';
+    addToList = listsBox.isNotEmpty ? listsBox.getAt(0) : '';
     items = _getItemNamesForList(listName);
     itemName = items.isNotEmpty ? items[0] : '';
 
@@ -466,7 +467,7 @@ class AddOrEditDiaryState extends State<AddOrEditDiary> {
                     SizedBox(
                       width: 125,
                       child: DropdownButton<String>( // List
-                        value: (listName.isNotEmpty && localListOrder.any((element) => element == listName)) ? listName : null,
+                        value: (listName.isNotEmpty && listsBox.containsKey(listName)) ? listName : null,
                         icon: const Icon(Icons.arrow_drop_down),
                         isExpanded: true,
                         onChanged: (String? newValue) {
@@ -477,7 +478,7 @@ class AddOrEditDiaryState extends State<AddOrEditDiary> {
                             itemName = items[0];
                           });
                         },
-                        items: localListOrder.map<DropdownMenuItem<String>>((String value) {
+                        items: listsBox.keys.map((e) => e.toString()).map<DropdownMenuItem<String>>((String value) {
                           return DropdownMenuItem<String>(
                             value: value,
                             child: Text(value),
@@ -556,7 +557,7 @@ class AddOrEditDiaryState extends State<AddOrEditDiary> {
                                     addToList = newValue!;
                                   });
                                 },
-                                items: localListOrder.map<DropdownMenuItem<String>>((String value) {
+                                items: listsBox.keys.map((e) => e.toString()).map<DropdownMenuItem<String>>((String value) {
                                   return DropdownMenuItem<String>(
                                     value: value,
                                     child: Text(value),
