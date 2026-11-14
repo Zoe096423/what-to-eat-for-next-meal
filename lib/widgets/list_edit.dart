@@ -26,6 +26,7 @@ class EditListPageState extends State<EditListPage> {
       for(var element in listBox.keys){
         if(listBox.get(element).order==order){
           localListOrder.add(element);
+          debugPrint("added $element"); //debug
           break;
         }
       }

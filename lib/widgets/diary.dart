@@ -156,18 +156,12 @@ class DiaryPageState extends State<DiaryPage>{
         title: const Text('用餐日記'),
         actions: [
           SizedBox(
-            width: 162,
-            child: CheckboxListTile(
-              contentPadding: EdgeInsets.all(1),
-              title: const Text(
-                '查看全部',
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  fontSize: 14,
-                ),
-              ),
+            width: 130,
+            child: LabeledCheckbox(
+              label: '查看全部',
+              padding: const EdgeInsets.only(left: 25.0),
               value: diaryList==diaryListAll,
-              onChanged:(bool? value) {
+              onChanged: (bool? value) {
                 setState(() {
                   diaryList = value! ? diaryListAll : diaryListToday;
                 });
@@ -367,8 +361,8 @@ class AddOrEditDiaryState extends State<AddOrEditDiary> {
   void initState() {
     super.initState();
 
-    listName = listsBox.isNotEmpty ? listsBox.getAt(0) : '';
-    addToList = listsBox.isNotEmpty ? listsBox.getAt(0) : '';
+    listName = listsBox.isNotEmpty ? listsBox.keyAt(0) : '';
+    addToList = listsBox.isNotEmpty ? listsBox.keyAt(0) : '';
     items = _getItemNamesForList(listName);
     itemName = items.isNotEmpty ? items[0] : '';
 

@@ -103,7 +103,7 @@ class RoulettePageState extends State<RoulettePage>{
                 RouletteUnit(
                   text: roulettelist[i].name,
                   color: colors[i%colors.length],
-                  textStyle:const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                  textStyle: const TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
                   weight: roulettelist[i].weight,
                 ),
               );

@@ -1,6 +1,7 @@
 // Roulette source: https://pub.dev/packages/roulette
 
 // Bugs to be fixed:
+//    Somehow there have been stuff added into the roulette repeatedly, causing errors.
 //    Somehow the "早餐" list resetted when I opened the app. Due to localListOrder initializing? How to make list order permenantly stored? Open a new box?
 //    Is it normal that when I reinstall the apk, the lists reset? The files has to be stored in cache, right?
 //    When adding new food to list via diary, the food name becomes default name (Meal 1)
@@ -9,7 +10,7 @@
 //    When adding, editing, or deleting diary entries, it dooes not refresh immediately despite having setState(){}. 
 
 // Features to be added:
-// -> Arrange the diary properly.
+// -> Arrange the diary properly. (btw, making the diary box lazy might help with optimization)
 //    When finished polling, buttons "好哇" "再抽一次" "算了" pop up. Choosing "好哇" auto adds the food to diary. Choosing "再抽一次" auto filters out the last result (until the app is restarted) and polls again. Choosing "算了" stops the poll.
 //    Add the function to filter via tags.
 //    Move the button for adding diary to the bottom right as a floating button which position can be changed via long pressing & dragging.
